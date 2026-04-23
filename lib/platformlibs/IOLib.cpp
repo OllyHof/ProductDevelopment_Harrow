@@ -140,6 +140,15 @@ void io_SetBit(uint8_t bitNumber, bool bitOn)
 		digitalWrite(g_OutputPins[bitNumber], bitValue);
 	}
 }
+//
+void io_SetBit_Analog(uint8_t bitNumber, uint8_t value)
+{
+	if (io_IsValidBitNumber(bitNumber))
+	{
+		analogWrite(g_OutputPins[bitNumber], value);
+	}
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // int16_t io_GetGPIONumberInput(uint8_t inputBitNumber)

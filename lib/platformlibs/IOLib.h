@@ -30,6 +30,7 @@ bool io_IsValidBitNumber(uint8_t bitNumber);
 bool io_IsBitSet(uint8_t bitNumber);
 void io_SetOutput(uint8_t value);
 void io_SetBit(uint8_t bitNumber, bool bitOn);
+void io_SetBit_Analog(uint8_t bitNumber, uint8_t value);
 
 int16_t io_GetGPIONumberInput(uint8_t inputBitNumber);
 

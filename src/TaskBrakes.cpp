@@ -14,7 +14,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <stdbool.h>
-
+#include <IOLib.h>
 ///////////////////////////////////////////////////////////////////////////////
 // application includes
 
@@ -26,16 +26,18 @@
 bool taskBrakes (bool BrakeOn, uint8_t BrakePin)
 {
 	if(BrakeOn){
-		digitalWrite(BrakePin, false);
-		if(digitalRead(BrakePin) == LOW){
-			return false;
-		}
+		//digitalWrite(BrakePin, false);
+		io_SetBit(BrakePin, true); // Testing
+		//if(digitalRead(BrakePin) == LOW){
+		return false;
+		//}
 	}
 	else{
-		digitalWrite(BrakePin, true);
-		if(digitalRead(BrakePin) == HIGH){
-			return false;
-		}
+		io_SetBit(BrakePin, false); // Testing
+		//digitalWrite(BrakePin, true);
+		//if(digitalRead(BrakePin) == HIGH){
+		return false;
+		//}
 	}
 	return true;
 }

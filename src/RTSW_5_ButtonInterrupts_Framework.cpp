@@ -3,13 +3,9 @@
 // RTSW_5_ButtonInterrupts_Framework.cpp
 //
 // Authors: 	Roel Smeets
-//              Oliver Hofman
-//              
 // Edit date: 	02-06-2025
 //				10-08-2025
 //				20-11-2025
-//              31-03-2026
-//              22-04-2026
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -25,7 +21,7 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "driver/uart.h"
-#include "WiFi.h"
+//#include "WiFi.h" -- Not included in libs??
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -53,9 +49,8 @@
 #include "SPIeeprom.h"
 #include "ADC3208Lib.h"
 #include "InterruptLib.h"
-
-// Custom commands
 #include "TaskBrakes.h"
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Global declarations, task handles
@@ -152,13 +147,19 @@ void setup()
     bool result = false;
 
 	Serial.begin(115200);
-	SerialPrintf("> RTSW Wiedeg\n");
+	SerialPrintf("> RTSW_5_ButtonInterrupts\n");
 	SerialPrintf("> build: %s\n", __TIMESTAMP__);
 	SerialPrintf("> running setup\n");
 
     result = platformInit();
 
    	SerialPrintf("> setup done: %s\n", (result == true) ? "OK" : "FAILED");
+
+	oled_Clear();
+	oled_WriteLine(0, "RTSW",             ALIGN_CENTER);
+	oled_WriteLine(1, "VKM PD",  ALIGN_CENTER);
+	oled_WriteLine(2, "Wiedeg",          ALIGN_CENTER);
+	oled_WriteLine(3, "V0.1",               ALIGN_CENTER);
 
     // start user tasks here:
     StartUserTasks();
@@ -171,17 +172,18 @@ void setup()
 	RunSystemTestsMenu();	// via user menu
 	#endif
 }
+
 ///////////////////////////////////////////////////////////////////////////////
 // pin definitions
-#define PIN_LED 1
-#define PIN_ANGLE_SENSOR 2
-#define PIN_PRESSURE_SENSOR 3
-#define PIN_ANGLE_BWD 4
-#define PIN_ANGLE_FWD 5
-#define PIN_PRESSURE 6
-#define PIN_ESTOP 7
-#define PIN_BrakeAngle 8
-#define PIN_BrakePressure 9
+uint16_t PIN_LED = 1;
+uint16_t PIN_ANGLE_SENSOR = 4;
+uint16_t PIN_PRESSURE_SENSOR = 3;
+uint16_t PIN_ANGLE_BWD = 4;
+uint16_t PIN_ANGLE_FWD = 5;
+uint16_t PIN_PRESSURE = 6;
+uint16_t PIN_ESTOP = 7;
+uint16_t PIN_BrakeAngle = 0;
+uint16_t PIN_BrakePressure = 9;
 
 ///////////////////////////////////////////////////////////////////////////////
 // variable declarations
@@ -198,6 +200,7 @@ uint16_t pwmPeriod      = 1000/pwmFrequency;
 uint16_t pwmResolution  = 8;
 //uint8_t Sema_MaxCountOne = 1;
 //uint8_t Sema_InitFreeZero = 0;
+
 ///////////////////////////////////////////////////////////////////////////////
 // user handle declarations
 
@@ -222,7 +225,6 @@ void TaskEStop(void *pvParameters);
 void TaskChangePressure(void *pvParameters);
 void TaskChangeAngle(void *pvParameters);
 
-void IRAM_ATTR estopISR(void);
 
 ///////////////////////////////////////////////////////////////////////////////
 // void StartUserTasks(void)
@@ -230,34 +232,22 @@ void IRAM_ATTR estopISR(void);
 void StartUserTasks(void)
 {
     BaseType_t result = pdFAIL;
-    analogWriteFrequency(pwmFrequency); // Set Frequency to 500Hz
-    analogWriteResolution(pwmResolution); // Set Resolution to 8 Bits
-
+        //analogWriteFrequency(pwmFrequency); // Set Frequency to 500Hz
+    //analogWriteResolution(pwmResolution); // Set Resolution to 8 Bits
     Sema_ChangeMachineSettings = xSemaphoreCreateBinary();
     Sema_LowerPressureSprings = xSemaphoreCreateBinary();
     Sema_EStop               = xSemaphoreCreateBinary();
 
-    pinMode(PIN_ESTOP, INPUT_PULLUP);
-    interrupt_AttachHandler(estopISR, PIN_ESTOP, FALLING);
-
     result = platformTaskCreate(TaskCANRead,         NULL, "TaskCANRead",         &handle_TaskCANRead);
-    result = platformTaskCreate(TaskCANSend,         NULL, "TaskCANSend",         &handle_TaskCANSend);
-    result = platformTaskCreate(TaskEStop,           NULL, "TaskEStop",           &handle_TaskEStop);
-    result = platformTaskCreate(TaskChangePressure,  NULL, "TaskChangePressure",  &handle_TaskChangePressure);
+//    result = platformTaskCreate(TaskCANSend,         NULL, "TaskCANSend",         &handle_TaskCANSend);
+//    result = platformTaskCreate(TaskEStop,           NULL, "TaskEStop",           &handle_TaskEStop);
+//    result = platformTaskCreate(TaskChangePressure,  NULL, "TaskChangePressure",  &handle_TaskChangePressure);
     result = platformTaskCreate(TaskChangeAngle,     NULL, "TaskChangeAngle",     &handle_TaskChangeAngle);
- }
+
+}
 
 ///////////////////////////////////////////////////////////////////////////////
-void IRAM_ATTR estopISR(void)
-{
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-    if (Sema_EStop != NULL)
-    {
-        xSemaphoreGiveFromISR(Sema_EStop, &xHigherPriorityTaskWoken);
-        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-    }
-}
 
 ///////////////////////////////////////////////////////////////////////////////
 void TaskCANRead(void *pvParameters)
@@ -265,7 +255,8 @@ void TaskCANRead(void *pvParameters)
     while (true)
     {
        // Read CAN messages and update variables
-        if (/* message received */ true) {
+        if (/* message received */ button_IsPressed(2)) {
+            SerialPrintf("> Simulated CAN message received: Change Angle Command\n");
             xSemaphoreGive(Sema_ChangeMachineSettings); // Signal angle/pressure change
         }
         taskSleep(100); // Adjust delay as needed
@@ -289,15 +280,6 @@ void TaskEStop(void *pvParameters)
 {
     while (true)
     {
-        if (xSemaphoreTake(Sema_EStop, portMAX_DELAY) == pdTRUE)
-        {
-            SerialPrintf("> EStop interrupt received\n");
-            taskBrakes(true, PIN_BrakeAngle);
-            taskBrakes(true, PIN_BrakePressure);
-            // Add additional emergency stop actions here
-        }
-
-        taskSleep(100); // Adjust delay as needed
     }
 }
 
@@ -309,22 +291,54 @@ void TaskChangeAngle(void *pvParameters)
         xSemaphoreTake(Sema_ChangeMachineSettings, portMAX_DELAY);
 
         // TaskGetInfo(); // Get current angle and pressure
-        uint64_t CurrentPressure = 0;
-
-        if (CurrentPressure != 10) {
+        uint64_t CurrentPressure = 0; /// LINK TO SENSOR DATA WIP
+        uint16_t idealAngle = 2048;   /// LINK TO CAN DATA
+        uint16_t CurrentAngle = adc_ReadRaw(PIN_ANGLE_SENSOR);
+        SerialPrintf("> Current Angle: %d, Current Pressure: %d\n", CurrentAngle, CurrentPressure);
+        if ((CurrentPressure != 10) || (CurrentPressure < 10)){ // If pressure is too high, lower pressure springs before changing angle
             xSemaphoreGive(Sema_LowerPressureSprings);
+            SerialPrintf("> Pressure too high, lowering pressure springs\n");
         }
 
         if (taskBrakes(false, PIN_BrakeAngle)){
-            // Give interrupt Error, brake error
+            SerialPrintf("> Error: Failed to disable brakes for angle change\n");
         } // Disable brakes
-        
+        SerialPrintf("> Brakes disabled for angle change\n");
         // Move angle to desired position
-        
+        while (CurrentAngle != idealAngle){ // Adjust threshold as needed
+
+            // Calculate speed based on error distance (0-255)
+            int16_t error = (int16_t)idealAngle - (int16_t)CurrentAngle;
+            uint16_t MovingSpeed = (uint16_t)(abs(error) * 255 / idealAngle);
+            if (MovingSpeed > 255) MovingSpeed = 255;
+            if (MovingSpeed < 10) MovingSpeed = 10;  // Minimum speed to move
+
+            if (CurrentAngle < idealAngle) {
+            
+                io_SetBit_Analog(PIN_ANGLE_FWD, MovingSpeed);
+                SerialPrintf("> Moving angle forward, Error: %d, Speed: %d\n", error, MovingSpeed);
+                delay(100);
+                io_SetBit_Analog(PIN_ANGLE_FWD, 0);
+            
+            } 
+            
+            else {
+
+                io_SetBit_Analog(PIN_ANGLE_BWD, MovingSpeed);
+                SerialPrintf("> Moving angle backward, Error: %d, Speed: %d\n", error, MovingSpeed);
+                delay(100);
+                io_SetBit_Analog(PIN_ANGLE_BWD, 0);
+                
+            }
+            
+            CurrentAngle = adc_ReadRaw(PIN_ANGLE_SENSOR);
+            
+        }
+
         if (taskBrakes(true, PIN_BrakeAngle)){
-            // Give interrupt Error, brake error
+            SerialPrintf("> Error: Failed to enable brakes for angle change\n");
         } // Enable brakes
-        
+        SerialPrintf("> Brakes enabled after angle change\n");
         // Give semaphore to pressure task to update pressure based on new angle
         
         taskSleep(100); // Adjust delay as needed
