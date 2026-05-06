@@ -5,8 +5,8 @@ Developed as part of the Product Development project (2025–2026) at Avans Hoge
 
 ## Authors
 
-- Roel Smeets  
-- Oliver Hofman  
+- Roel Smeets  (Teacher)
+- Oliver Hofman  (Student)
 
 ## Project Context
 
