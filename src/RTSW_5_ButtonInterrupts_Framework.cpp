@@ -10,6 +10,8 @@
 //              22-04-2026
 //              23-04-2026
 //              25-04-2026
+//              07-05-2026
+//              08-05-2026
 //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -185,6 +187,8 @@ uint16_t PIN_PRESSURE_SENSOR = 3;
 uint16_t PIN_ANGLE_BWD = 4;
 uint16_t PIN_ANGLE_FWD = 5;
 uint16_t PIN_PRESSURE = 6;
+uint16_t PIN_PRESSURE_BWD = 6;
+uint16_t PIN_PRESSURE_FWD = 8;
 uint16_t PIN_ESTOP = 7;
 uint16_t PIN_BrakeAngle = 0;
 uint16_t PIN_BrakePressure = 9;
@@ -219,6 +223,7 @@ xTaskHandle handle_TaskChangeAngle      = NULL;
 SemaphoreHandle_t Sema_ChangeMachineSettings = NULL;
 SemaphoreHandle_t Sema_LowerPressureSprings  = NULL;
 SemaphoreHandle_t Sema_EStop                = NULL;
+SemaphoreHandle_t Sema_UpdatePressure       = NULL;
 
 ///////////////////////////////////////////////////////////////////////////////
 // function prototypes
@@ -241,6 +246,7 @@ void StartUserTasks(void)
     Sema_ChangeMachineSettings = xSemaphoreCreateBinary();
     Sema_LowerPressureSprings = xSemaphoreCreateBinary();
     Sema_EStop               = xSemaphoreCreateBinary();
+    Sema_UpdatePressure      = xSemaphoreCreateBinary();
 
     result = platformTaskCreate(TaskCANRead,         NULL, "TaskCANRead",         &handle_TaskCANRead);
 //    result = platformTaskCreate(TaskCANSend,         NULL, "TaskCANSend",         &handle_TaskCANSend);
@@ -344,7 +350,8 @@ void TaskChangeAngle(void *pvParameters)
         } // Enable brakes
         SerialPrintf("> Brakes enabled after angle change\n");
         // Give semaphore to pressure task to update pressure based on new angle
-        
+        xSemaphoreGive(Sema_UpdatePressure);
+
         taskSleep(100); // Adjust delay as needed
     }
 }
@@ -353,21 +360,101 @@ void TaskChangePressure(void *pvParameters)
 {
     while (true)
     {
-        // Await semaphore to change pressure from angle task
+        // Await semaphore to lower pressure springs
+        xSemaphoreTake(Sema_LowerPressureSprings, portMAX_DELAY);
 
-        // TaskGetInfo(); // Get current angle and pressure 
-        
+        uint16_t CurrentPressure = adc_ReadRaw(PIN_PRESSURE_SENSOR);
+        uint16_t idealPressure = 10;   // LINK TO CAN DATA or desired value
+        SerialPrintf("> Current Pressure: %d\n", CurrentPressure);
+
         if (taskBrakes(false, PIN_BrakePressure)){
-            // Give interrupt Error, brake error
+            SerialPrintf("> Error: Failed to disable brakes for pressure change\n");
         } // Disable brakes
+        SerialPrintf("> Brakes disabled for pressure change\n");
 
         // Move pressure to desired position
+        while (CurrentPressure != idealPressure){ // Adjust threshold as needed
+
+            // Calculate speed based on error distance (0-255)
+            int16_t error = (int16_t)idealPressure - (int16_t)CurrentPressure;
+            uint16_t MovingSpeed = (uint16_t)(abs(error) * 255 / idealPressure);
+            if (MovingSpeed > 255) MovingSpeed = 255;
+            if (MovingSpeed < 10) MovingSpeed = 10;  // Minimum speed to move
+
+            if (CurrentPressure < idealPressure) {
+            
+                io_SetBit_Analog(PIN_PRESSURE_FWD, MovingSpeed);
+                SerialPrintf("> Moving pressure forward, Error: %d, Speed: %d\n", error, MovingSpeed);
+                delay(100);
+                io_SetBit_Analog(PIN_PRESSURE_FWD, 0);
+            
+            } 
+            
+            else {
+
+                io_SetBit_Analog(PIN_PRESSURE_BWD, MovingSpeed);
+                SerialPrintf("> Moving pressure backward, Error: %d, Speed: %d\n", error, MovingSpeed);
+                delay(100);
+                io_SetBit_Analog(PIN_PRESSURE_BWD, 0);
+                
+            }
+            
+            CurrentPressure = adc_ReadRaw(PIN_PRESSURE_SENSOR);
+            
+        }
 
         if (taskBrakes(true, PIN_BrakePressure)){
-            // Give interrupt Error, brake error
+            SerialPrintf("> Error: Failed to enable brakes for pressure change\n");
         } // Enable brakes
+        SerialPrintf("> Brakes enabled after pressure lowering\n");
 
-        // Give semaphore to pressure task to update pressure based on new angle
+        // Await semaphore to update pressure based on new angle
+        xSemaphoreTake(Sema_UpdatePressure, portMAX_DELAY);
+
+        idealPressure = 20; // LINK TO CAN DATA or calculation
+        SerialPrintf("> Setting pressure to ideal: %d\n", idealPressure);
+
+        if (taskBrakes(false, PIN_BrakePressure)){
+            SerialPrintf("> Error: Failed to disable brakes for pressure setting\n");
+        } // Disable brakes
+        SerialPrintf("> Brakes disabled for pressure setting\n");
+
+        // Move pressure to ideal position
+        while (CurrentPressure != idealPressure){ // Adjust threshold as needed
+
+            // Calculate speed based on error distance (0-255)
+            int16_t error = (int16_t)idealPressure - (int16_t)CurrentPressure;
+            uint16_t MovingSpeed = (uint16_t)(abs(error) * 255 / 100); // assuming max 100
+            if (MovingSpeed > 255) MovingSpeed = 255;
+            if (MovingSpeed < 10) MovingSpeed = 10;  // Minimum speed to move
+
+            if (CurrentPressure < idealPressure) {
+            
+                io_SetBit_Analog(PIN_PRESSURE_FWD, MovingSpeed);
+                SerialPrintf("> Moving pressure forward, Error: %d, Speed: %d\n", error, MovingSpeed);
+                delay(100);
+                io_SetBit_Analog(PIN_PRESSURE_FWD, 0);
+            
+            } 
+            
+            else {
+
+                io_SetBit_Analog(PIN_PRESSURE_BWD, MovingSpeed);
+                SerialPrintf("> Moving pressure backward, Error: %d, Speed: %d\n", error, MovingSpeed);
+                delay(100);
+                io_SetBit_Analog(PIN_PRESSURE_BWD, 0);
+                
+            }
+            
+            CurrentPressure = adc_ReadRaw(PIN_PRESSURE_SENSOR);
+            
+        }
+
+        if (taskBrakes(true, PIN_BrakePressure)){
+            SerialPrintf("> Error: Failed to enable brakes for pressure setting\n");
+        } // Enable brakes
+        SerialPrintf("> Brakes enabled after pressure setting\n");
+
         taskSleep(100); // Adjust delay as needed 
     }  
 }
