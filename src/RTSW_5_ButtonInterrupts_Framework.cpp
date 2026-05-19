@@ -59,10 +59,10 @@
 #include "Tasks_Framework/TaskCommandHandler.h"
 
 #if (HARDWARE_CONNECTED == HARDWARE_HARROW)
-    #include "Tasks_Custom/TaskBrakes.h"
-//    #include "Tasks_Custom/TaskCommunicate.h"
-//    #include "Tasks_Custom/TaskPressure.h"
-//    #include "Tasks_Custom/TaskAngle.h"
+    #include "Tasks_Custom/TaskBrakes.h" // Needs To be updated to new hardware configuration
+//    #include "Tasks_Custom/TaskCommunicate.h"  -- Not yet implemented
+//    #include "Tasks_Custom/TaskPressure.h" -- Not yet implemented
+//    #include "Tasks_Custom/TaskAngle.h" -- Not yet implemented
     #include "Tasks_Custom/TaskStatusLight.h"
 #endif // HARDWARE_CONNECTED
 
@@ -121,7 +121,7 @@ bool platformInit(void)
 
     #elif (HARDWARE_CONNECTED == HARDWARE_HARROW)
         SerialPrintf("> initializing hardware Harrow\n");
-        io_Init();
+        
         led_Init();
         button_Init();
         spi_Init();
