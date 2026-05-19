@@ -11,9 +11,11 @@
 
 #include "Arduino.h"
 
-#if (TARGET == NANO33_IOT)
-#include "api/deprecated-avr-comp/avr/dtostrf.c.impl"
-#endif
+//#if (TARGET == NANO33_IOT)
+//#include "api/deprecated-avr-comp/avr/dtostrf.c.impl" 
+//#endif
+
+// ^^^^ Above is commented out because of errors, could not find the file. Since working on non Nano33_IOT target, this should not cause any issues.
 
 ///////////////////////////////////////////////////////////////////////////////
 // char *dtos(double value, uint8_t precision)

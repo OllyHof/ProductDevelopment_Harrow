@@ -43,7 +43,7 @@ bool taskBrakes (bool BrakeOn, uint8_t BrakePin)
 }
 
 //////////////////////////////////////////////////////////////////////////////
-// Implemente TaskBrakes as follows:
+// Implement TaskBrakes as follows:
 
 // - If BrakeOn is true, set the brake pin to engage the brakes (e.g., LOW)
 // - If BrakeOn is false, set the brake pin to disengage the brakes (e
