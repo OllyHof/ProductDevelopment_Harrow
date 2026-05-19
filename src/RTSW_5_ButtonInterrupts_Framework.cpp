@@ -50,6 +50,7 @@
 
 #include "SystemTests.h"
 
+#include "Function_Config.h"
 #include "Hardware_Config.h"
 #include "Config.h"
 
@@ -57,6 +58,13 @@
 #include "Tasks_Framework/TaskCLIHandler.h"
 #include "Tasks_Framework/TaskCommandHandler.h"
 
+#if (HARDWARE_CONNECTED == HARDWARE_HARROW)
+    #include "Tasks_Custom/TaskBrakes.h"
+//    #include "Tasks_Custom/TaskCommunicate.h"
+//    #include "Tasks_Custom/TaskPressure.h"
+//    #include "Tasks_Custom/TaskAngle.h"
+    #include "Tasks_Custom/TaskStatusLight.h"
+#endif // HARDWARE_CONNECTED
 
 ///////////////////////////////////////////////////////////////////////////////
 // Global declarations, task handles
@@ -99,16 +107,33 @@ bool platformInit(void)
     bool result = true;
     uint8_t nDevices = 0;
 
-    io_Init();
-    led_Init();
-    button_Init();
-    spi_Init();
-    qc_Init();
-	dac_Init();
+    #if (HARDWARE_CONNECTED == HARDWARE_TESTBOARD)
+        SerialPrintf("> initializing hardware Testboard\n");
+        io_Init();
+        led_Init();
+        button_Init();
+        spi_Init();
+        qc_Init();
+        dac_Init();
+        i2cOK  = i2c_Init();
+        oledOK = oled_Init();
+        uartOK = uart_Init();
 
-    i2cOK  = i2c_Init();
-    oledOK = oled_Init();
-    uartOK = uart_Init();
+    #elif (HARDWARE_CONNECTED == HARDWARE_HARROW)
+        SerialPrintf("> initializing hardware Harrow\n");
+        io_Init();
+        led_Init();
+        button_Init();
+        spi_Init();
+        qc_Init();
+        dac_Init();
+        i2cOK  = i2c_Init();
+        oledOK = true; // oled_Init(); // NO OLED ON HARROW
+        uartOK = uart_Init();
+
+    #else
+        SerialPrintf("> no hardware connected, skipping hardware initialization\n");
+    #endif // HARDWARE_CONNECTED
 
 	result = i2cOK && oledOK && uartOK;
 
@@ -161,11 +186,13 @@ void setup()
 
    	SerialPrintf("> setup done: %s\n", (result == true) ? "OK" : "FAILED");
 
-	oled_Clear();
-	oled_WriteLine(0, "RTSW",             ALIGN_CENTER);
-	oled_WriteLine(1, "VKM PD",  ALIGN_CENTER);
-	oled_WriteLine(2, "Wiedeg",          ALIGN_CENTER);
-	oled_WriteLine(3, "V0.1",               ALIGN_CENTER);
+#if (HARDWARE_CONNECTED == HARDWARE_TESTBOARD)    
+        oled_Clear();
+        oled_WriteLine(0, "RTSW",             ALIGN_CENTER);
+        oled_WriteLine(1, "VKM PD",  ALIGN_CENTER);
+        oled_WriteLine(2, "Wiedeg",          ALIGN_CENTER);
+        oled_WriteLine(3, "V0.1",               ALIGN_CENTER);
+#endif // HARDWARE_CONNECTED
 
     // start user tasks here:
     StartUserTasks();
@@ -185,7 +212,7 @@ void setup()
 void StartUserTasks(void)
 {
     BaseType_t result = pdFAIL;
-
+    
 }
 
 ///////////////////////////////////////////////////////////////////////////////
