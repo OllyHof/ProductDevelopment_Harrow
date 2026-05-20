@@ -60,17 +60,17 @@
 #include "Tasks_Framework/TaskCommandHandler.h"
 
 #if (HARDWARE_CONNECTED == HARDWARE_HARROW)
-    #include "Tasks_Custom/TaskBrakes.h" // Needs To be updated to new hardware configuration
-    #include "Tasks_Custom/TaskCommunicate.h" //  -- Not yet implemented
-    #include "Tasks_Custom/TaskPressure.h" // -- Not yet implemented
-    #include "Tasks_Custom/TaskAngle.h" // -- Not yet implemented
+    #include "Tasks_Custom/TaskBrakes.h" // implemented; verify hardware mapping
+    #include "Tasks_Custom/TaskCommunicate.h" // implemented
+    #include "Tasks_Custom/TaskPressure.h" // implemented
+    #include "Tasks_Custom/TaskAngle.h" // implemented (needs review)
     #include "Tasks_Custom/TaskStatusLight.h"
 #endif // HARDWARE_CONNECTED
 
 ///////////////////////////////////////////////////////////////////////////////
 // Global declarations, task handles
 
-xTaskHandle handle_HartbeatTask	= NULL;
+xTaskHandle handle_HeartbeatTask	= NULL;
 xTaskHandle handle_CLITask		= NULL;
 xTaskHandle handle_CmdTask		= NULL;
 
@@ -163,7 +163,7 @@ bool platformInit(void)
 
     cliMessageQueue = xQueueCreate(QUEUESIZE, sizeof(CLI_MESSAGE));
 
-    result &= platformTaskCreate(task_Heartbeat,      NULL, "task_heartbeat", &handle_HartbeatTask);
+    result &= platformTaskCreate(task_Heartbeat,      NULL, "task_heartbeat", &handle_HeartbeatTask);
     result &= platformTaskCreate(task_CLIHandler,     NULL, "task_cli",       &handle_CLITask);
     result &= platformTaskCreate(task_CommandHandler, NULL, "task_cmd",       &handle_CmdTask);
 

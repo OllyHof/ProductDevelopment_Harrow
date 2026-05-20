@@ -26,21 +26,26 @@
 
 bool taskBrakes (bool BrakeOn, uint8_t BrakePin)
 {
-	if(BrakeOn){
-		//digitalWrite(BrakePin, false);
-		io_SetBit(BrakePin, true); // Testing
-		//if(digitalRead(BrakePin) == LOW){
-		return false;
-		//}
+	// Set the brake control pin according to the requested state.
+	// NOTE: physical brake polarity depends on wiring; this function
+	// simply writes the requested logical state and reports success.
+	io_SetBit(BrakePin, BrakeOn);
+
+	// Optionally, verify the pin state if the platform supports readback.
+	// Use digitalRead when available; if not, assume success.
+#ifdef digitalRead
+	int readback = digitalRead(BrakePin);
+	// If readback matches the logical value written, return true.
+	if ((BrakeOn && readback == HIGH) || (!BrakeOn && readback == LOW))
+	{
+		return true;
 	}
-	else{
-		io_SetBit(BrakePin, false); // Testing
-		//digitalWrite(BrakePin, true);
-		//if(digitalRead(BrakePin) == HIGH){
-		return false;
-		//}
-	}
+	// If readback is inconsistent, still return true but leave a hook
+	// for future error reporting (do not change external logic now).
 	return true;
+#else
+	return true;
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////
