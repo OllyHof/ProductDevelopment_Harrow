@@ -55,6 +55,8 @@ graph TD
     Motors --> Encoders[Encoder Feedback]
 
     ESP32 --> CAN[CAN Bus Module]
+    
+    CAN --> Amiga[Amiga Robot by BonsaiRobotics]
 ```
 
 ---
