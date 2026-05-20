@@ -7,8 +7,10 @@
 // Edit date: 	02-06-2025
 //				10-08-2025
 //				20-11-2025
-//              22-04-2026 .... 08-05-2026 (Harrow V0.1)
-//              19-05-2026 .... xx-xx-2026 (Harrow V0.2)
+//              22-04-2026 .... 08-05-2026 (Harrow V0.1) Initial Attempt at project during P2.3
+//              19-05-2026 .... 20-05-2026 (Harrow V0.2) First fully defined version (non hardware tested)
+//				xx-xx-2026 .... xx-xx-2026 (Harrow V0.3) First Bugfix round after testing
+//
 //
 ///////////////////////////////////////////////////////////////////////////////
 
