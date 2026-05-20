@@ -74,6 +74,7 @@ xTaskHandle handle_HartbeatTask	= NULL;
 xTaskHandle handle_CLITask		= NULL;
 xTaskHandle handle_CmdTask		= NULL;
 xTaskHandle handle_CommunicateTask = NULL;
+xTaskHandle handle_CommunicateSendTask = NULL;
 void StartUserTasks(void);
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -213,7 +214,8 @@ void setup()
 void StartUserTasks(void)
 {
     BaseType_t result = pdFAIL;
-    result = platformTaskCreate(TaskCommunicate_Receive, NULL, "task_communicate", &handle_CommunicateTask);
+    result &= platformTaskCreate(TaskCommunicate_Receive, NULL, "task_communicate_rx", &handle_CommunicateTask);
+    result &= platformTaskCreate(TaskCommunicate_Send, NULL, "task_communicate_tx", &handle_CommunicateSendTask);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
