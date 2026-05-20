@@ -1,5 +1,5 @@
 ## Author
-This directory contain tasks created solely by student Oliver Hofman.
+Oliver Hofman
 
 ## Tasks
 The 5 main software tasks are:
@@ -9,30 +9,57 @@ The 5 main software tasks are:
 * TaskPressure
 * TaskAngle
 
-These are described within this README file and their respective .cpp and .h files
+These are described within this README file and their respective .cpp and .h files.
 
 ## TaskCommunicate
-A task built to handle serial bus comunication. It contains functions for transmitting, recieving and processing data.
+Provides communication-related FreeRTOS tasks for sending and receiving machine settings.
+
+Key behavior:
+* `TaskCommunicate_Send` is a FreeRTOS task that periodically runs and is intended to send data over the communication interface.
+* `TaskCommunicate_Receive` is a FreeRTOS task that periodically updates `Machine_Settings`, including `Idealangle` and `IdealPressure`.
+* Current implementation uses placeholder values and a 10 ms task delay.
 
 ## TaskBrakes
-Controls the brake system of the harrow by managing brake engagement and disengagement. The task accepts a boolean state (BrakeOn) and a brake id number as parameters. When BrakeOn is true, the brake pin is driven high to engage the brakes; when false, the pin is driven low to disengage them. The function returns a status boolean for error handling, allowing the calling routine to detect any brake control failures and trigger appropriate error responses.
+Handles brake engagement and disengagement through a simple pin control interface.
+
+Key behavior:
+* `taskBrakes(bool BrakeOn, uint8_t BrakePin)` sets the specified brake pin state using `io_SetBit`.
+* When `BrakeOn` is true, the function engages the brake pin; when false, it disengages the brake pin.
+* The function currently returns `false` for both branches, so error handling is present in the signature but not active in the current stub implementation.
 
 ## TaskStatusLight
-Provides visual system status indication through an RGB LED signal tower with multiple operational states. The task accepts a status code and drives the red, green, and yellow LEDs accordingly, along with a blink control pin. It supports ten distinct status modes:
-* STATUS_NOCONTROL (yellow blinking) - System initializing
-* STATUS_ERROR_HARD (red blinking) - Critical error requiring immediate attention 
-* STATUS_ERROR_SOFT (red solid) - Non-critical error detected
-* STATUS_ALLGOOD (green solid) - System ready and idle
-* STATUS_STANDBY (yellow solid) - System in standby mode
-* STATUS_RUNNING (green blinking) - System actively operating
-* STATUS_WARNING (red + yellow solid) - Warning condition detected
-* STATUS_DISABLED (all LEDs off) - System offline or disabled
-* STATUS_MAINTENANCE (all colors blinking) - Diagnostic or service mode in progress
-* STATUS_WORKING (green + yellow blinking) - Adjustments in progress (Stay clear of harrow)
+Manages the status tower LEDs using a status code lookup table.
 
-This comprehensive state feedback allows operators to quickly assess machine health, operational readiness, and current activity at a glance.
+Key behavior:
+* `taskStatusLight(uint8_t Status)` maps a status code to LED outputs: red, green, yellow, and blink.
+* It supports 10 status codes:
+  * `STATUS_NOCONTROL` - yellow blinking
+  * `STATUS_ERROR_HARD` - red blinking
+  * `STATUS_ERROR_SOFT` - red solid
+  * `STATUS_ALLGOOD` - green solid
+  * `STATUS_STANDBY` - yellow solid
+  * `STATUS_RUNNING` - green blinking
+  * `STATUS_WARNING` - red + yellow solid
+  * `STATUS_DISABLED` - all LEDs off
+  * `STATUS_MAINTENANCE` - all colors blinking
+  * `STATUS_WORKING` - green + yellow blinking
+* For hardware builds, it writes to `PIN_TREE_RED`, `PIN_TREE_GREEN`, `PIN_TREE_YELLOW`, and `PIN_TREE_BLINK`.
+* For non-hardware builds, it prints the status values to serial for testing.
 
 ## TaskPressure
+Controls pressure motor and brake coordination based on machine settings.
+
+Key behavior:
+* `TaskPressure(void *pvParameters)` loops through a motor configuration array and adjusts motor/brake outputs toward `Machine_Settings.IdealPressure`.
+* Uses `LimitPWM` to clamp PWM values, `ChangeDirection` to set motor direction, and `ReadEncoder` to update encoder feedback.
+* Coordinates with `taskBrakes` to release and engage brakes during control operations.
+* Current implementation includes example conversion logic, error threshold checks, and placeholder encoder feedback.
 
 ## TaskAngle
+Present in the current source tree, but does not yet implement a dedicated task function or application logic.
+
+Key status:
+* `TaskAngle.cpp` and `TaskAngle.h` exist.
+* The module currently includes header and source scaffolding, but no active task implementation is defined at this time.
+
 

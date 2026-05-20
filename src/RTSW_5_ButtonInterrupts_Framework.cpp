@@ -24,6 +24,7 @@
 #include "freertos/task.h"
 #include "freertos/semphr.h"
 #include "driver/uart.h"
+#include "driver/pcnt.h"
 //#include "WiFi.h" -- Not included in libs??
 
 
@@ -60,9 +61,9 @@
 
 #if (HARDWARE_CONNECTED == HARDWARE_HARROW)
     #include "Tasks_Custom/TaskBrakes.h" // Needs To be updated to new hardware configuration
-//    #include "Tasks_Custom/TaskCommunicate.h"  -- Not yet implemented
-//    #include "Tasks_Custom/TaskPressure.h" -- Not yet implemented
-//    #include "Tasks_Custom/TaskAngle.h" -- Not yet implemented
+    #include "Tasks_Custom/TaskCommunicate.h" //  -- Not yet implemented
+    #include "Tasks_Custom/TaskPressure.h" // -- Not yet implemented
+    #include "Tasks_Custom/TaskAngle.h" // -- Not yet implemented
     #include "Tasks_Custom/TaskStatusLight.h"
 #endif // HARDWARE_CONNECTED
 
@@ -72,7 +73,7 @@
 xTaskHandle handle_HartbeatTask	= NULL;
 xTaskHandle handle_CLITask		= NULL;
 xTaskHandle handle_CmdTask		= NULL;
-
+xTaskHandle handle_CommunicateTask = NULL;
 void StartUserTasks(void);
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -212,7 +213,7 @@ void setup()
 void StartUserTasks(void)
 {
     BaseType_t result = pdFAIL;
-    
+    result = platformTaskCreate(TaskCommunicate_Receive, NULL, "task_communicate", &handle_CommunicateTask);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
