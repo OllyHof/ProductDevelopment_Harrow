@@ -3,11 +3,13 @@
 // TaskAngle.h
 //
 // Authors: 	Oliver Hofman
-// Edit date: 	19-05-2026
+// Edit date: 	20-05-2026
 //
 ///////////////////////////////////////////////////////////////////////////////
 
 #ifndef TASKANGLE_H_
 #define TASKANGLE_H_
+
+void TaskAngle(void *pvParameters);
 
 #endif // TASKANGLE_H_

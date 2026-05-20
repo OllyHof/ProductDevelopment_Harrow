@@ -28,6 +28,7 @@
 #include "Hardware_Config.h"
 
 #include "TaskPressure.h"
+#include "MotorUtils.h"
 #include "TaskCommunicate.h"
 #include "TaskBrakes.h"
 #include "TaskSleep.h"
@@ -79,15 +80,16 @@ void TaskPressure(void *pvParameters)
             if (config->EncoderValue > idealEncoder)
             {
                 // Current encoder count is above the setpoint; choose one direction
-                ChangeDirection(Clockwise);
+                ChangeDirection(PIN_PRESSURE_MOTOR_DIR, Clockwise);
+                CurrentDirection = Clockwise;
             }
             else
             {
                 // Current encoder count is below the setpoint; choose opposite direction
-                ChangeDirection(CounterClockwise);
+                ChangeDirection(PIN_PRESSURE_MOTOR_DIR, CounterClockwise);
+                CurrentDirection = CounterClockwise;
             }
 
-            // Release the brake before moving the motor
             if (taskBrakes(false, config->BrakeID))
             {
                 // Brake release failure should be handled by the calling task or error manager
@@ -105,7 +107,8 @@ void TaskPressure(void *pvParameters)
                     if (Error < 0)
                     {
                         // Reverse direction if the measured value has crossed the setpoint
-                        ChangeDirection(!CurrentDirection);
+                        CurrentDirection = !CurrentDirection;
+                        ChangeDirection(PIN_PRESSURE_MOTOR_DIR, CurrentDirection);
                         break;
                     }
                 }
@@ -127,45 +130,3 @@ void TaskPressure(void *pvParameters)
     taskSleep(10); // Small delay between control cycles
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Update the motor direction control signal and store the chosen direction state
-void ChangeDirection(bool direction)
-{
-    *CurrentDirectionPtr = direction;
-    io_SetBit(PIN_PRESSURE_MOTOR_DIR, direction);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Constrain a computed PWM value to the allowed output range
-uint8_t LimitPWM(uint64_t voltage, uint8_t maxVoltage = 255, uint8_t minVoltage = 0)
-{
-    if (voltage > maxVoltage)
-    {
-        voltage = maxVoltage;
-    }
-    else if (voltage < minVoltage)
-    {
-        voltage = minVoltage;
-    }
-
-    return (uint8_t)voltage;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Read the encoder value from the two encoder GPIO inputs
-uint64_t ReadEncoder(uint64_t Encodervalue, gpio_num_t EncoderPinA, gpio_num_t EncoderPinB)
-{
-    if (digitalRead(EncoderPinA) == HIGH)
-    {
-        if (digitalRead(EncoderPinA) > digitalRead(EncoderPinB))
-        {
-            Encodervalue++;
-        }
-        else
-        {
-            Encodervalue--;
-        }
-    }
-
-    return Encodervalue;
-}
