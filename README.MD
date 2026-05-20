@@ -1,173 +1,312 @@
-# Amiga Wiedeg Control System (ESP32)
+# VKMPD Wiedeg Electronica
 
-Embedded real-time control software for the **Wiedeg (weed harrow) attachment** designed for the **Amiga agricultural robot**.  
-Developed as part of the Product Development project (2025–2026) at Avans Hogeschool.
+## Overview
 
-## Authors
+VKMPD Wiedeg Electronica is an ESP32-based embedded control system developed at Avans Hogeschool for the electronic control and actuation of the Wiedeg mechanical platform.
 
-- Roel Smeets  (Teacher)
-- Oliver Hofman  (Student)
+The project combines:
 
-## Project Context
+- Real-time task scheduling using FreeRTOS
+- Distributed actuator control
+- Relay-driven solenoid management
+- Encoder feedback processing
+- CAN bus communication
+- Multi-voltage power distribution
+- Embedded motor control systems
 
-This software is part of a larger system that enables **mechanical weed control** using a wiedeg attached to the Amiga robot. The system allows adjustment and control of:
-
-- Tooth pressure (tanddruk)
-- Tooth angle (tandhoek)
-- Working depth (via Amiga robot)
-- System status and feedback
-
-The goal is to provide a **sustainable alternative to chemical weed control** through precise mechanical soil treatment.
-
-## System Overview
-
-The software runs on an ESP32 and acts as the **embedded control layer** between:
-
-1. User interface (Amiga Brain / dashboard)
-2. Communication layer (CLI / future CAN-bus)
-3. Actuators and sensors (motors, encoders, ADC/DAC)
-
-Core functionality:
-- Real-time actuator control
-- Sensor data acquisition
-- User interaction via CLI
-- Modular hardware abstraction
-
-## Key Features
-
-- **Real-Time Operation (FreeRTOS)**  
-  Multitasking for stable and predictable behavior
-
-- **Actuator Control**  
-  - PWM motor control (H-bridge)  
-  - PID-based positioning (angle & pressure)
-
-- **Sensor Integration**  
-  - ADC for analog sensors  
-  - Encoder feedback for positioning
-
-- **User Interface**  
-  - Serial CLI for control and debugging  
-  - OLED display for status feedback
-
-- **Interrupt Handling**  
-  Responsive input via button interrupts
-
-- **Data Storage**  
-  EEPROM for persistent configuration
-
-- **Modular Design**  
-  Easily extendable system architecture
-
-## Hardware Requirements
-
-- ESP32 development board (e.g. NodeMCU-32S)
-- MCP3208 (ADC)
-- MCP4922 (DAC)
-- OLED SSD1306 (I2C)
-- Motor drivers (H-bridge)
-- Encoders / sensors
-- Push buttons (interrupt input)
-- I2C EEPROM (24LC256)
-
-## Software Architecture
-
-The system follows a layered architecture:
-
-### 1. Interface Layer
-- CLI (Serial)
-- OLED display
-
-### 2. Control Layer
-- PID controllers
-- FreeRTOS task scheduling
-
-### 3. Hardware Layer
-- ADC / DAC drivers
-- Communication interfaces (I2C, SPI, UART)
-- Interrupt handling
-- Motor control
-
-## Project Structure
-
-```
-ProductDevelopment_Harrow/
-├── platformio.ini
-├── src/
-│   ├── RTSW_5_ButtonInterrupts_Framework.cpp
-│   ├── Config.h
-│   ├── Task*.cpp/.h
-├── lib/
-│   ├── platformlibs/
-│   ├── serialprintf/
-│   ├── systemtests/
-│   └── utilities/
-├── include/
-├── test/
-└── README.md
-```
-
-## Installation
-
-1. Open project in PlatformIO (VS Code)
-2. Build the project
-3. Connect ESP32 via USB
-4. Upload firmware
-
-## Usage
-
-1. Power the ESP32
-2. Open Serial Monitor (115200 baud)
-3. Use CLI commands for:
-   - System diagnostics
-   - Actuator control
-   - Sensor readings
-4. Monitor system via OLED display
-
-## Configuration
-
-In `Config.h`:
-
-- `SYSTEMTEST_ONLY` → enable test mode
-- Pin assignments
-- ADC/DAC settings
-- Task configurations
-
-## Relation to Wiedeg System
-
-This software controls:
-
-- Tooth angle via motor + encoder
-- Tooth pressure via spring + motor control
-- Feedback to the user interface
-- Safe operation through interrupts and failsafes
-
-It represents the **embedded control system of the implement**, not the full Amiga robot.
-
-## Development Notes
-
-- Add new features via FreeRTOS tasks
-- Use `SerialPrintf` for debugging
-- Tune PID controllers per mechanical setup
-
-## Troubleshooting
-
-- Check I2C addresses for OLED/EEPROM issues
-- Verify interrupt pins for input problems
-- Use CLI for debugging output
-
-## Future Improvements
-
-- CAN-bus integration
-- Automatic depth control
-- Additional sensors (force, soil feedback)
-- Semi-autonomous adjustments
-
-## License
-
-Open-source project. Contact authors for details.
+The software architecture is modular and task-oriented, allowing the system to scale and remain maintainable during continued hardware and software development.
 
 ---
 
-**Last updated:** April 2026
+## System Architecture
+
+The system is centered around an ESP32-WROOM controller running multiple FreeRTOS tasks.
+
+### Main Functional Subsystems
+
+- Brake and solenoid control
+- Force adjustment actuators
+- Angle adjustment actuators
+- Encoder feedback acquisition
+- Communication handling
+- Status indication and diagnostics
+- Real-time control loop management
+
+### High-Level Architecture
+
+```mermaid
+graph TD
+    ESP32[ESP32-WROOM32]
+
+    ESP32 --> RTOS[FreeRTOS Task Scheduler]
+
+    RTOS --> Brakes[Brake Control Tasks]
+    RTOS --> Pressure[Pressure Control Tasks]
+    RTOS --> Angle[Angle Control Tasks]
+    RTOS --> Comm[Communication Tasks]
+    RTOS --> Status[Status Light Tasks]
+
+    Brakes --> RelayA[Relay Board A K1-K16]
+    Pressure --> RelayB[Relay Board B K17-K32]
+
+    RelayA --> Solenoids[Solenoid Outputs]
+    RelayB --> Motors[Motor Drivers]
+
+    Motors --> Encoders[Encoder Feedback]
+
+    ESP32 --> CAN[CAN Bus Module]
+```
+
+---
+
+## Hardware Platform
+
+### Main Controller
+
+- ESP32-WROOM32 (38-pin variant)
+- Arduino framework
+- FreeRTOS-based multitasking
+- PlatformIO build environment
+
+### Power Distribution
+
+The system operates from a 44V battery input and generates multiple regulated voltage rails.
+
+| Voltage Rail | Purpose |
+|---|---|
+| 44VDC | Main battery input |
+| 24VDC | Motor drivers and signaling |
+| 12VDC | Solenoids and relays |
+| 5VDC | Logic, encoders, communication |
+
+### Communication
+
+- CAN bus interface
+- UART support
+- I2C support
+- SPI support
+
+### Relay Control
+
+Two relay boards are used for actuator and solenoid switching:
+
+| Relay Board | Function |
+|---|---|
+| K1-K16 | Solenoid control |
+| K17-K32 | Actuator and signaling control |
+
+### Motor Control
+
+The platform uses dedicated motor drivers for:
+
+- Force adjustment actuators
+- Angle adjustment actuators
+
+Encoder feedback is used for positional and directional control.
+
+---
+
+## Software Architecture
+
+The project follows a layered embedded software structure.
+
+```text
+src/
+├── Tasks_Framework/
+├── Tasks_Custom/
+├── Hardware_Config.h
+├── Function_Config.h
+├── Config.h
+└── RTSW_5_ButtonInterrupts_Framework.cpp
+```
+
+### Framework Layer
+
+The framework layer provides reusable RTOS infrastructure and platform abstraction.
+
+#### Included Framework Tasks
+
+| Task | Purpose |
+|---|---|
+| TaskHeartbeat | System heartbeat and monitoring |
+| TaskCLIHandler | Serial command line interface |
+| TaskCommandHandler | Command processing |
+
+### Custom Application Tasks
+
+Application-specific functionality is implemented inside `Tasks_Custom/`.
+
+| Task | Purpose |
+|---|---|
+| TaskBrakes | Solenoid brake control |
+| TaskPressure | Pressure and force management |
+| TaskAngle | Angle control and positioning |
+| TaskCommunicate | Communication handling |
+| TaskStatusLight | Tower light and diagnostics |
+
+### RTOS Features
+
+The system uses FreeRTOS with:
+
+- Core-pinned tasks
+- Semaphores
+- Queues
+- Runtime statistics
+- Watchdog support
+- Inter-task communication
+
+---
+
+## Software Dependencies
+
+### Build Environment
+
+- PlatformIO
+- Arduino framework for ESP32
+- Espressif32 platform
+
+### External Libraries
+
+| Library | Purpose |
+|---|---|
+| ESP32OLEDSSD1306 | OLED display support |
+| I2CEEPROM | EEPROM access |
+| ESP32Encoder | Encoder processing |
+
+### Internal Platform Libraries
+
+The project includes a large set of reusable platform abstraction libraries.
+
+Examples include:
+
+- ADC3208Lib
+- DAC4922Lib
+- IOLib
+- InterruptLib
+- LEDLib
+- OLEDLibESP32
+- QC7366Lib
+- UART740Lib
+- SPILib
+- TaskSleep
+
+These libraries provide hardware abstraction and simplify portability and maintenance.
+
+---
+
+## Electrical System Overview
+
+### Power Conversion
+
+The electrical architecture uses multiple DC-DC converters:
+
+| Converter | Function |
+|---|---|
+| DDR-60L-12 | 44V → 12V |
+| DDR-120C-24 | 44V → 24V |
+| DDR-15L-5 | 44V → 5V |
+| DDR-480C-12 | High-current 12V supply |
+
+### Signal Tower
+
+The system includes a multi-state signal tower for status indication:
+
+- Red
+- Yellow
+- Green
+- Blinking state support
+- Continuous state support
+
+---
+
+## Development Environment
+
+### Recommended Tools
+
+| Tool | Purpose |
+|---|---|
+| Visual Studio Code | Main IDE |
+| PlatformIO | Build and upload environment |
+| Git | Version control |
+
+### Supported Target
+
+| Target | Framework |
+|---|---|
+| NodeMCU-32S | Arduino |
+
+---
+
+## Engineering Notes
+
+- The architecture is designed for modular expansion.
+- Hardware mappings are centralized in configuration headers.
+- Tasks are isolated to improve maintainability and debugging.
+- The project uses hardware abstraction extensively to simplify migration and testing.
+- Several modules remain under active development and verification.
+
+---
+
+## Safety and Reliability
+
+The system includes:
+
+- Watchdog integration
+- RTOS task monitoring
+- Heartbeat supervision
+- Isolated control layers
+- Hardware abstraction for safer testing
+
+Additional electrical and mechanical safety measures must be implemented before deployment in production or safety-critical environments.
+
+---
+
+## Repository Structure
+
+```text
+ProductDevelopment_Harrow/
+├── include/
+├── lib/
+│   ├── fmap/
+│   └── platformlibs/
+├── src/
+│   ├── Tasks_Framework/
+│   ├── Tasks_Custom/
+│   ├── Config.h
+│   ├── Function_Config.h
+│   ├── Hardware_Config.h
+│   └── RTSW_5_ButtonInterrupts_Framework.cpp
+├── platformio.ini
+└── README.md
+```
+
+---
+
+## Project Information
+
+| Item | Value |
+|---|---|
+| Project | VKMPD Wiedeg Electronica |
+| Institution | Avans Hogeschool |
+| Department | Product Development |
+| Platform | ESP32-WROOM32 |
+| Framework | Arduino + FreeRTOS |
+| Build System | PlatformIO |
+
+---
+
+## Authors
+
+| Name | Role |
+|---|---|
+| Oliver Hofman | Embedded Software & Electronics |
+| Roel Smeets | Framework Development |
+
+---
+
+## License
+
+This project was developed as part of an educational engineering project at Avans Hogeschool.
+
+Usage, modification, and distribution rights depend on project ownership and institutional agreements.
 
