@@ -84,7 +84,7 @@ The system operates from a 44V battery input and generates multiple regulated vo
 | 24VDC | Angle Motor drivers and signaling |
 | 12VDC 40A| Pressure Motor drivers |
 | 12VDC 5A | Solenoids |
-| 5VDC 3A | Logic, encoders, communication, Relays |
+| 5VDC | Logic, encoders, communication, Relays |
 
 ### Communication
 
