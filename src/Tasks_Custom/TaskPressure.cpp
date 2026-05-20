@@ -34,6 +34,8 @@
 #include "TaskSleep.h"
 ///////////////////////////////////////////////////////////////////////////////
 
+extern SemaphoreHandle_t xControlLoopSemaphore;
+
 typedef struct
 {
     gpio_num_t MotorID;     // Motor select GPIO for the pressure channel
@@ -127,6 +129,11 @@ void TaskPressure(void *pvParameters)
         }
     }
 
-    taskSleep(10); // Small delay between control cycles
+    xSemaphoreGive(xControlLoopSemaphore); // Signal control loop that angle control is complete
+
+    while (true)
+    {
+        vTaskDelay(portMAX_DELAY); // Suspend the task indefinitely after completing control
+    }
 }
 

@@ -18,6 +18,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // functions
 
+void MachineStatus(void *pvParameters);
 void taskStatusLight(uint8_t Status);
 
 #endif // TASKSTATUSLIGHT_H_

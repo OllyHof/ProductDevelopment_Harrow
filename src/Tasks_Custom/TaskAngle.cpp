@@ -37,6 +37,7 @@
 #define ErrorThreshold 5               // Minimum encoder error before motor activation
 
 static bool CurrentDirection = Clockwise;
+extern SemaphoreHandle_t xControlLoopSemaphore;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Angle control task
@@ -48,7 +49,7 @@ void TaskAngle(void *pvParameters)
     uint64_t idealEncoder = Machine_Settings.Idealangle * AngleToEncoder;
 
     float error = (float)(idealEncoder - encoderValue);
-
+    
     if (abs(error) > ErrorThreshold)
     {
         if (encoderValue > idealEncoder)
@@ -96,6 +97,13 @@ void TaskAngle(void *pvParameters)
         }
 
         io_SetBit_Analog(PIN_ANGLE_MOTOR_PWM, 0);
+    }
+
+    xSemaphoreGive(xControlLoopSemaphore); // Signal control loop that angle control is complete
+    
+    while (true)
+    {
+        vTaskDelay(portMAX_DELAY); // Suspend the task indefinitely after completing control
     }
 
     taskSleep(10);

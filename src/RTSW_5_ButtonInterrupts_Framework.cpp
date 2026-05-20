@@ -73,10 +73,18 @@
 xTaskHandle handle_HartbeatTask	= NULL;
 xTaskHandle handle_CLITask		= NULL;
 xTaskHandle handle_CmdTask		= NULL;
+
 xTaskHandle handle_CommunicateTask = NULL;
 xTaskHandle handle_CommunicateSendTask = NULL;
-void StartUserTasks(void);
+xTaskHandle handle_ControlLoopTask = NULL;
+xTaskHandle handle_PressureTask = NULL;
+xTaskHandle handle_AngleTask = NULL;
+xTaskHandle handle_StatusLightTask = NULL;
 
+SemaphoreHandle_t xControlLoopSemaphore = NULL;
+
+void StartUserTasks(void);
+void TaskControlLoop(void *pvParameters);
 ///////////////////////////////////////////////////////////////////////////////
 // wrapper, simplified version of xTaskCreatePinnedToCore
 
@@ -216,10 +224,44 @@ void StartUserTasks(void)
     BaseType_t result = pdFAIL;
     result &= platformTaskCreate(TaskCommunicate_Receive, NULL, "task_communicate_rx", &handle_CommunicateTask);
     result &= platformTaskCreate(TaskCommunicate_Send, NULL, "task_communicate_tx", &handle_CommunicateSendTask);
+    result &= platformTaskCreate(TaskControlLoop, NULL, "task_control_loop", &handle_ControlLoopTask);
+    result &= platformTaskCreate(MachineStatus, NULL, "task_status", &handle_StatusLightTask);
+    xControlLoopSemaphore = xSemaphoreCreateBinary();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Funtions
+void TaskControlLoop(void *pvParameters)
+{
+    BaseType_t result = pdFAIL;
+    while (true)
+    {
+        if (xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY) == pdTRUE)
+        {
+            result &= platformTaskCreate(TaskPressure, NULL, "task_pressure", &handle_PressureTask);
+
+            if (xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY) == pdTRUE)
+            {
+                vTaskDelete(&handle_PressureTask); // Delete pressure task to free resources
+                result &= platformTaskCreate(TaskAngle, NULL, "task_angle", &handle_AngleTask);
+
+                if (xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY) == pdTRUE)
+                {
+                    vTaskDelete(&handle_AngleTask); // Delete angle task to free resources
+                    // Control loop cycle complete, can add additional tasks or logic here
+                }
+            }
+            
+                // control loop code here
+        }
+        // control loop code here
+
+        vTaskDelay(pdMS_TO_TICKS(100)); // delay to prevent watchdog reset
+    }
+}
+
+
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // void loop()

@@ -22,6 +22,10 @@
 #include "Function_Config.h"
 #include "Hardware_Config.h"
 
+extern TaskHandle_t handle_PressureTask;
+extern TaskHandle_t handle_AngleTask;
+extern TaskHandle_t handle_ControlLoopTask;
+
 ///////////////////////////////////////////////////////////////////////////////
 // LED Configuration structure
 typedef struct {
@@ -48,6 +52,68 @@ const LEDConfig ledConfigs[] = {
 };
 
 #define NUM_LED_CONFIGS (sizeof(ledConfigs) / sizeof(ledConfigs[0]))
+
+static bool isTaskActive(TaskHandle_t handle)
+{
+    if (handle == NULL)
+    {
+        return false;
+    }
+
+    eTaskState state = eTaskGetState(handle);
+    return (state != eDeleted && state != eInvalid);
+}
+
+static bool hasFatalError(void)
+{
+    // Replace with actual fatal error detection using sensors, watchdogs, or error flags.
+    return false;
+}
+
+static bool hasSoftError(void)
+{
+    // Replace with actual non-critical error detection if required.
+    return false;
+}
+
+static uint8_t determineMachineStatus(void)
+{
+    if (hasFatalError())
+    {
+        return STATUS_ERROR_HARD;
+    }
+
+    if (hasSoftError())
+    {
+        return STATUS_ERROR_SOFT;
+    }
+
+    if (isTaskActive(handle_PressureTask) || isTaskActive(handle_AngleTask))
+    {
+        return STATUS_RUNNING;
+    }
+    
+    return STATUS_ALLGOOD;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void MachineStatus(void *pvParameters)
+{
+    uint8_t currentStatus = STATUS_NOCONTROL; // Default status
+
+    while (true)
+    {
+        uint8_t newStatus = determineMachineStatus();
+
+        if (newStatus != currentStatus)
+        {
+            currentStatus = newStatus;
+        }
+
+        taskStatusLight(currentStatus);
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // void taskStatusLight(uint8_t Status)

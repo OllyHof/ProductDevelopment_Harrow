@@ -59,7 +59,7 @@ void info_Tasks(void)
 	char *taskName = NULL;
 	TaskHandle_t handle = NULL;
 	UBaseType_t highWaterMark = 0;
-
+	eTaskState state = eInvalid;
 	uint8_t nTasks = uxTaskGetNumberOfTasks();
 
 	SerialPrintf("--- %d tasks registered, %d tasks executing ---\n", g_nTasksRegistered, nTasks);
