@@ -48,15 +48,19 @@ graph TD
 
     Brakes --> RelayA[Relay Board A K1-K16]
     Pressure --> RelayB[Relay Board B K17-K32]
+    Status --> RelayB[Relay Board B K17-K32]
+    Angle --> RelayB[Relay Board B K17-K32]
 
     RelayA --> Solenoids[Solenoid Outputs]
     RelayB --> Motors[Motor Drivers]
+    RelayB --> MotorsSel[Motor Selection]
+    RelayB --> Signalling[Signalling Lights]
 
     Motors --> Encoders[Encoder Feedback]
 
     ESP32 --> CAN[CAN Bus Module]
     
-    CAN --> Amiga[Amiga Robot by BonsaiRobotics]
+    CAN --> Amiga[Amiga by Bonsai Robotics]
 ```
 
 ---
