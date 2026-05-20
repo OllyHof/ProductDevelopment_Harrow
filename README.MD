@@ -81,9 +81,10 @@ The system operates from a 44V battery input and generates multiple regulated vo
 | Voltage Rail | Purpose |
 |---|---|
 | 44VDC | Main battery input |
-| 24VDC | Motor drivers and signaling |
-| 12VDC | Solenoids and relays |
-| 5VDC | Logic, encoders, communication |
+| 24VDC | Angle Motor drivers and signaling |
+| 12VDC 40A| Pressure Motor drivers |
+| 12VDC 5A | Solenoids |
+| 5VDC 3A | Logic, encoders, communication, Relays |
 
 ### Communication
 
