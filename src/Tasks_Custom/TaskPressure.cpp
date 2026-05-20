@@ -5,10 +5,15 @@
 // Authors: 	Oliver Hofman
 // Edit date: 	19-05-2026
 //
+// This module implements the pressure control task for the machine. It reads
+// the requested pressure setpoint from Machine_Settings, compares it to the
+// encoder feedback, and operates the motor, direction control, and brakes until
+// the target pressure is achieved.
+//
 ///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
-// system includes
+// Platform and FreeRTOS includes
 
 #include <Arduino.h>
 #include "freertos/FreeRTOS.h"
@@ -16,7 +21,7 @@
 #include <stdbool.h>
 #include <IOLib.h>
 ///////////////////////////////////////////////////////////////////////////////
-// application includes
+// Hardware and task interfaces
 
 #include <stdint.h>
 #include "driver/gpio.h"
@@ -30,111 +35,137 @@
 
 typedef struct
 {
-    gpio_num_t MotorID; 
-    gpio_num_t BrakeID; 
-    int EncoderValue; 
+    gpio_num_t MotorID;     // Motor select GPIO for the pressure channel
+    gpio_num_t BrakeID;     // Brake control GPIO for the pressure channel
+    int EncoderValue;       // Latest encoder count used for closed-loop control
 } MotorConfig_t;
 
 MotorConfig_t motorConfigs[] = 
 {
-    {PIN_PRESSURE_MOTOR_SEL_1, PIN_BRAKE_UPPER_1, 0}, // Motor 1
-    {PIN_PRESSURE_MOTOR_SEL_2, PIN_BRAKE_UPPER_2, 0}, // Motor 2
-    {PIN_PRESSURE_MOTOR_SEL_3, PIN_BRAKE_UPPER_3, 0}, // Motor 3
-    {PIN_PRESSURE_MOTOR_SEL_4, PIN_BRAKE_UPPER_4, 0}, // Motor 4
+    {PIN_PRESSURE_MOTOR_SEL_1, PIN_BRAKE_UPPER_1, 0}, // Pressure channel 1
+    {PIN_PRESSURE_MOTOR_SEL_2, PIN_BRAKE_UPPER_2, 0}, // Pressure channel 2
+    {PIN_PRESSURE_MOTOR_SEL_3, PIN_BRAKE_UPPER_3, 0}, // Pressure channel 3
+    {PIN_PRESSURE_MOTOR_SEL_4, PIN_BRAKE_UPPER_4, 0}, // Pressure channel 4
 };
 
-#define PressureToEncoder 1.0 // Example conversion factor from pressure to encoder value
-#define Clockwise true
-#define CounterClockwise false
-#define Error (float)(idealEncoder - motorConfigs[i].EncoderValue) // Example error condition for brake engagement
-#define MotorPWM (uint8_t)(LimitPWM((abs(ProportionalGain * Error)*255)/idealEncoder, 255, 0)) // Example motor PWM calculation based on error
-#define ProportionalGain 1.0 // Example proportional gain for motor control
-#define ErrorThreshold 100 // Example error threshold for acceptable range
+#define PressureToEncoder 1.0f            // Conversion factor from requested pressure to encoder counts
+#define Clockwise true                   // Motor direction used for Positive pressure adjustment direction
+#define CounterClockwise false           // Motor direction used for Negative pressure adjustment direction
+#define Error (float)(idealEncoder - motorConfigs[i].EncoderValue)
+#define MotorPWM (uint8_t)(LimitPWM((abs(ProportionalGain * Error) * 255) / idealEncoder, 255, 0))
+#define ProportionalGain 1.0f            // Proportional control gain for PWM output
+#define ErrorThreshold 100               // Minimum encoder error before the motor is enabled
 #define ErrorTooHigh (abs(Error) > ErrorThreshold)
 
 bool CurrentDirection = Clockwise;
-bool* CurrentDirectionPtr = &CurrentDirection; // Pointer to track current direction for brake control
+bool* CurrentDirectionPtr = &CurrentDirection; // Shared direction state used by ChangeDirection
 //////////////////////////////////////////////////////////////////////////////////////////////
-// void TaskPressure(void *pvParameters);
-// This task controls the pressure motors based on the desired pressure and angle settings.
+// Pressure control task
+// Iterates the list of pressure channels, applies the control loop to each one,
+// and manages motor PWM, direction, and brakes until the encoder reading matches
+// the requested pressure target.
 void TaskPressure(void *pvParameters)
 {
-        // Control logic for pressure motors based on Machine_Settings
-        for (int i = 0; i < sizeof(motorConfigs) / sizeof(MotorConfig_t); i++)
+    for (int i = 0; i < sizeof(motorConfigs) / sizeof(MotorConfig_t); i++)
+    {
+        MotorConfig_t *config = &motorConfigs[i];
+        uint64_t idealEncoder = Machine_Settings.IdealPressure * PressureToEncoder; // Setpoint in encoder counts
+
+        if (ErrorTooHigh)
         {
-            MotorConfig_t *config = &motorConfigs[i];
-            
-            
-            uint64_t idealEncoder = Machine_Settings.IdealPressure * PressureToEncoder; // Get the ideal pressure from the communication data
-            
-            if (ErrorTooHigh) { // Example condition to engage brakes
-                io_SetBit(config->MotorID, true); // Example: Activate motor based on settings
-                
-                if (config->EncoderValue > idealEncoder) { // Example condition to engage brakes
-                    ChangeDirection(Clockwise); // Example: Change direction to wind up pressure
-                }
-                else{ // Example condition to release pressure
-                    ChangeDirection(CounterClockwise); // Example: Change direction to release pressure
-                }
+            // Enable the selected pressure motor output
+            io_SetBit(config->MotorID, true);
 
-                if (taskBrakes(false, config->BrakeID)){
-                    // Give Interrupt Error, brake error
-                }
-
-                while (ErrorTooHigh) { // Example condition to maintain motor control until desired pressure is reached
-                    io_SetBit_Analog(PIN_PRESSURE_MOTOR_PWM, MotorPWM); // Example: Set motor PWM based on error
-                    while (ErrorTooHigh) { // Example condition to check if error is within acceptable range
-                        config->EncoderValue = ReadEncoder(config->EncoderValue, PIN_PRESSURE_SENSOR_A, PIN_PRESSURE_SENSOR_B); // Example: Read encoder value for feedback
-                        if (Error < 0)
-                        {
-                            ChangeDirection(!CurrentDirection);
-                            break;
-                        }
-                    }
-                    taskSleep(10); // Delay for 10 milliseconds
-                }
-                
-                if(taskBrakes(true, config->BrakeID)){
-                    // Give Interrupt Error, brake error
-                }
-
-                io_SetBit_Analog(PIN_PRESSURE_MOTOR_PWM, 0); // Example: Deactivate motor after reaching desired pressure
+            if (config->EncoderValue > idealEncoder)
+            {
+                // Current encoder count is above the setpoint; choose one direction
+                ChangeDirection(Clockwise);
             }
-           
-        }    
-        taskSleep(10); // Delay for 10 milliseconds
+            else
+            {
+                // Current encoder count is below the setpoint; choose opposite direction
+                ChangeDirection(CounterClockwise);
+            }
+
+            // Release the brake before moving the motor
+            if (taskBrakes(false, config->BrakeID))
+            {
+                // Brake release failure should be handled by the calling task or error manager
+            }
+
+            while (ErrorTooHigh)
+            {
+                // Drive the motor with PWM proportional to the remaining error
+                io_SetBit_Analog(PIN_PRESSURE_MOTOR_PWM, MotorPWM);
+
+                while (ErrorTooHigh)
+                {
+                    // Sample encoder feedback while the motor is active
+                    config->EncoderValue = ReadEncoder(config->EncoderValue, PIN_PRESSURE_SENSOR_A, PIN_PRESSURE_SENSOR_B);
+                    if (Error < 0)
+                    {
+                        // Reverse direction if the measured value has crossed the setpoint
+                        ChangeDirection(!CurrentDirection);
+                        break;
+                    }
+                }
+
+                taskSleep(10); // Yield to other tasks and allow sensor settling
+            }
+
+            // Engage the brake after the setpoint has been reached
+            if (taskBrakes(true, config->BrakeID))
+            {
+                // Brake engagement failure should be handled elsewhere
+            }
+
+            // Stop the motor once pressure control is complete
+            io_SetBit_Analog(PIN_PRESSURE_MOTOR_PWM, 0);
+        }
+    }
+
+    taskSleep(10); // Small delay between control cycles
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+// Update the motor direction control signal and store the chosen direction state
 void ChangeDirection(bool direction)
 {
-    *CurrentDirectionPtr = direction; // Update the current direction
-    io_SetBit(PIN_PRESSURE_MOTOR_DIR, direction); // Set direction to wind up pressure    
+    *CurrentDirectionPtr = direction;
+    io_SetBit(PIN_PRESSURE_MOTOR_DIR, direction);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-uint8_t LimitPWM(uint64_t voltage, uint8_t maxVoltage = 255, uint8_t minVoltage = 0){
-    if (voltage > maxVoltage) {
-        voltage = maxVoltage; // Limit voltage to maximum value
-    } 
-    else if (voltage < minVoltage) {
-        voltage = minVoltage; // Limit voltage to minimum value
+// Constrain a computed PWM value to the allowed output range
+uint8_t LimitPWM(uint64_t voltage, uint8_t maxVoltage = 255, uint8_t minVoltage = 0)
+{
+    if (voltage > maxVoltage)
+    {
+        voltage = maxVoltage;
     }
-    
-    voltage = (uint8_t)voltage; // Cast voltage to uint8_t for PWM output
+    else if (voltage < minVoltage)
+    {
+        voltage = minVoltage;
+    }
 
-    return voltage;
+    return (uint8_t)voltage;
 }
 
-uint64_t ReadEncoder(uint64_t Encodervalue, gpio_num_t EncoderPinA, gpio_num_t EncoderPinB){
-    //Example logic to read encoder value based on the state of the encoder pins
-    if(digitalRead(EncoderPinA) == HIGH)
-        if (digitalRead(EncoderPinA)> digitalRead(EncoderPinB))
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Read the encoder value from the two encoder GPIO inputs
+uint64_t ReadEncoder(uint64_t Encodervalue, gpio_num_t EncoderPinA, gpio_num_t EncoderPinB)
+{
+    if (digitalRead(EncoderPinA) == HIGH)
+    {
+        if (digitalRead(EncoderPinA) > digitalRead(EncoderPinB))
+        {
             Encodervalue++;
+        }
         else
+        {
             Encodervalue--;
-            // Example function to read encoder value for feedback
-        // Replace with actual implementation to read from the encoder hardware
-    return Encodervalue; // Return the read encoder value
+        }
+    }
+
+    return Encodervalue;
 }
