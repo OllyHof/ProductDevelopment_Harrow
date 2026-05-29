@@ -133,7 +133,7 @@ bool platformInit(void)
 
     #elif (HARDWARE_CONNECTED == HARDWARE_HARROW)
         SerialPrintf("> initializing hardware Harrow\n");
-        
+        io_Init();
         led_Init();
         button_Init();
         spi_Init();
@@ -224,12 +224,20 @@ void setup()
 void StartUserTasks(void)
 {
     BaseType_t result = pdFAIL;
+    #if (HARDWARE_CONNECTED == HARDWARE_HARROW)
+        SerialPrintf("> starting user tasks for Harrow\n");
     result &= platformTaskCreate(TaskCommunicate_Receive, NULL, "task_communicate_rx", &handle_CommunicateTask);
     result &= platformTaskCreate(TaskCommunicate_Send, NULL, "task_communicate_tx", &handle_CommunicateSendTask);
     result &= platformTaskCreate(TaskControlLoop, NULL, "task_control_loop", &handle_ControlLoopTask);
     result &= platformTaskCreate(MachineStatus, NULL, "task_status", &handle_StatusLightTask);
+    #else
+        SerialPrintf("> no user tasks defined for current hardware configuration\n");
+    #endif // HARDWARE_CONNECTED
     xControlLoopSemaphore = xSemaphoreCreateBinary();
 }
+
+///////////////////////////////////////////////////////////////////////////////
+//ISR
 
 ///////////////////////////////////////////////////////////////////////////////
 // Funtions
@@ -250,8 +258,10 @@ void TaskControlLoop(void *pvParameters)
                 if (xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY) == pdTRUE)
                 {
                     vTaskDelete(&handle_AngleTask); // Delete angle task to free resources
+                    
                     // Control loop cycle complete, can add additional tasks or logic here
                 }
+                
             }
             
                 // control loop code here

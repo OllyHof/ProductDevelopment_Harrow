@@ -60,8 +60,8 @@ static bool isTaskActive(TaskHandle_t handle)
         return false;
     }
 
-    eTaskState state = eTaskGetState(handle);
-    return (state != eDeleted && state != eInvalid);
+    eTaskState Taskstate = eTaskGetState(handle);
+    return (Taskstate != eDeleted && Taskstate != eInvalid);
 }
 
 static bool hasFatalError(void)

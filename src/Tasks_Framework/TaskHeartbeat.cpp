@@ -18,6 +18,7 @@
 #include "SerialPrintf.h"
 #include "TaskSleep.h"
 #include "TaskHeartbeat.h"
+#include "LedLib.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 // void task_Heartbeat(void *pvParameters)
