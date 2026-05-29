@@ -52,7 +52,7 @@
     #define PIN_PRESSURE_MOTOR_SEL_3  GPIO_NUM_16 // IF LOW ENABLES M5 AND M6 (written before hardware was available, may need to be changed)
     #define PIN_PRESSURE_MOTOR_SEL_4  GPIO_NUM_17 // IF LOW ENABLES M7 AND M8 (written before hardware was available, may need to be changed)
 
-    #define PIN_PRESSURE_SENSOR_A     GPIO_NUM_18 // HALL SENSOR PHASE A
+    #define PIN_PRESSURE_SENSOR_A     GPIO_NUM_25 // HALL SENSOR PHASE A
     #define PIN_PRESSURE_SENSOR_B     GPIO_NUM_19 // HALL SENSOR PHASE B
 
     // Agle Pins
@@ -63,6 +63,9 @@
     #define PIN_ANGLE_SENSOR_B        GPIO_NUM_23 // HALL SENSOR PHASE B
     #define PIN_ANGLE_SENSOR_INDEX    GPIO_NUM_24 // HALL SENSOR INDEX
 
+    // Button Pins
+    #define PIN_BUTTON_ESTOP          GPIO_NUM_18
+
 #endif // HARDWARE_CONNECTED
 
-#endif // HARDWARE_CONFIG_H
+#endif // HARDWARE_CONFIG_H;

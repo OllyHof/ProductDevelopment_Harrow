@@ -12,5 +12,5 @@
 #define TASKBRAKES_H_
 
 bool taskBrakes (bool BrakeOn, uint8_t BrakePin);
-
+void Estop_Brake ();
 #endif	// TASKBRAKES_H_

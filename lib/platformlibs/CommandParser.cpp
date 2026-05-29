@@ -65,57 +65,66 @@ bool cmd_ParseCommand(String commandLine, String command)
 //
 // see also cmd_ParseFloat for float implementation
 
-int32_t cmd_ParseInteger(String commandLine, String paramName, 
-						 int32_t previousValue, int32_t lowerLimit, int32_t upperlimit)
+int32_t cmd_ParseInteger(String commandLine, String paramName,
+                         int32_t previousValue,
+                         int32_t lowerLimit,
+                         int32_t upperlimit)
 {
-	int32_t value = 0;
-	const char *delimiters = " =";	// space ' 'and '=' are delimiters between tokens
-	char *token = NULL;				// points to token in commandLine
-	bool found	= false;
-	char *name	= (char*)paramName.c_str();			// conversion needed from String type
-	uint8_t paramNameLength = paramName.length();	// length of paramName
-	char *stringToParse = (char*)commandLine.c_str();
+    int32_t value = 0;
 
-	// get pointer to first token in commandLine: thread safe version!
-	token = strtok_r(stringToParse, delimiters, &stringToParse);
+    const char *delimiters = " =";
+    char *token = NULL;
+    bool found = false;
 
-	// search for paramName in the commandLine until at the end or found
-	while ((token != NULL) && (found == false))
-	{
-		// if EXACT paramName found:
-		if ((strcmp(token, name) == 0)	&& (paramNameLength == strlen(token)))	
-		{
-			found = true;
-			token = strtok(NULL, delimiters);	// get ptr to value string
-			if (token != NULL)					// get value if value string present
-			{
-				char *p = NULL;					// required  for checking valid value string
-				value = strtol(token, &p, 10);
-				if (*p != '\0')					// if number string is invalid
-				{
-					value = previousValue;		// then keep previous value
-				}
-			}
-			else // if no value string present: keep previous value
-			{
-				value = previousValue;
-			}
-		}
-		
-		// find next parameter name in commandLine
-		token = strtok(NULL, delimiters);
-	}
+    char *name = (char*)paramName.c_str();
 
-	// if the paramName was not found in the commandLine, keep previous value
-	if (found == false)
-	{
-		value = previousValue;
-	}
+    char temp[64];
+    strncpy(temp, commandLine.c_str(), sizeof(temp));
+    temp[sizeof(temp) - 1] = '\0';
 
-	// keep the value between the user defined limits:
-	value = constrain(value, lowerLimit, upperlimit);
+    char *stringToParse = temp;
 
-	return value;
+    // FIRST TOKEN
+    token = strtok_r(stringToParse, delimiters, &stringToParse);
+
+    while ((token != NULL) && (found == false))
+    {
+        if (strcmp(token, name) == 0)
+        {
+            found = true;
+
+            // GET VALUE TOKEN
+            token = strtok_r(NULL, delimiters, &stringToParse);
+
+            if (token != NULL)
+            {
+                char *p = NULL;
+
+                value = strtol(token, &p, 10);
+
+                if (*p != '\0')
+                {
+                    value = previousValue;
+                }
+            }
+            else
+            {
+                value = previousValue;
+            }
+        }
+
+        // NEXT TOKEN
+        token = strtok_r(NULL, delimiters, &stringToParse);
+    }
+
+    if (found == false)
+    {
+        value = previousValue;
+    }
+
+    value = constrain(value, lowerLimit, upperlimit);
+
+    return value;
 }
 
 ///////////////////////////////////////////////////////////////////////////////

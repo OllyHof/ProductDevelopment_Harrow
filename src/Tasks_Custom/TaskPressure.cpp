@@ -136,3 +136,13 @@ void TaskPressure(void *pvParameters)
         vTaskDelay(portMAX_DELAY); // Suspend the task indefinitely after completing control
     }
 }
+
+
+void Estop_Pressure()
+{
+    for(int i = 0; i < sizeof(motorConfigs) / sizeof(MotorConfig_t); i++)
+    {
+        MotorConfig_t *config = &motorConfigs[i];
+        io_SetBit_Analog(PIN_PRESSURE_MOTOR_PWM, 0); // Stop the motor immediately
+    }
+}

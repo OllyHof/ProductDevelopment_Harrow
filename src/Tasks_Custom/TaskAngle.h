@@ -11,5 +11,6 @@
 #define TASKANGLE_H_
 
 void TaskAngle(void *pvParameters);
+void Estop_Angle();
 
 #endif // TASKANGLE_H_

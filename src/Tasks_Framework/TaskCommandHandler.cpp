@@ -62,21 +62,95 @@ void task_CommandHandler(void* param)
 				{
 					info_Version();
 				}
-				else if (cmd_ParseCommand(buffer, "Setup"))
-				{
-					Machine_Settings.IdealPressure = cmd_ParseFloat(buffer, "pressure", Machine_Settings.IdealPressure, 1.0, 3.5);
-					Machine_Settings.Idealangle = cmd_ParseInteger(buffer, "angle", Machine_Settings.Idealangle, 10, 35);
-					SerialPrintf("> updated settings: Pressure=%.2f, Angle=%d\n", Machine_Settings.IdealPressure, Machine_Settings.Idealangle);
-				}
-				else if (cmd_ParseCommand(buffer, "Reset"))
+				else if (cmd_ParseCommand(buffer, "reset.Hard"))
 				{
 					SerialPrintf("> resetting system...\n");
 					esp_restart();
 				}
-				else if (cmd_ParseCommand(buffer, "Start"))
+				else if (cmd_ParseCommand(buffer, "reset.Soft"))
+				{
+					SerialPrintf("> resetting ESTOP...\n");
+					xSemaphoreGive(xResetSemaphore); // Signal ESTOP handler to reset the system
+					taskSleep(10);
+					xSemaphoreTake(xResetSemaphore, 0);
+				}
+				else if (cmd_ParseCommand(buffer, "start"))
 				{
 					SerialPrintf("> starting control loop...\n");
 					xSemaphoreGive(xHandleStartControlLoop); // Signal control loop to start
+				}
+				else if (cmd_ParseCommand(buffer, "setup"))
+				{
+					SerialPrintf("> Starting machine setup\n");
+					SerialPrintf("> Input format:\n");
+					SerialPrintf("  pressure=<value>\n");
+					SerialPrintf("  angle=<value>\n");
+					SerialPrintf("> Type 'exit' anytime to quit\n\n");
+
+					bool setupRunning = true;
+
+					while (setupRunning)
+					{
+						// -------- PRESSURE --------
+						SerialPrintf("> Enter pressure:\n");
+
+						if (xQueueReceive(cliMessageQueue, buffer, portMAX_DELAY) == pdTRUE)
+						{
+							if (cmd_ParseCommand(buffer, "exit"))
+							{
+								break;
+							}
+
+							Machine_Settings.IdealPressure =
+								cmd_ParseFloat(
+									String(buffer),
+									"pressure",
+									Machine_Settings.IdealPressure,
+									1.0,
+									3.5);
+
+							SerialPrintf("> Pressure updated: %.2f\n",
+										Machine_Settings.IdealPressure);
+						}
+
+						// -------- ANGLE --------
+						SerialPrintf("> Enter angle:\n");
+
+						if (xQueueReceive(cliMessageQueue, buffer, portMAX_DELAY) == pdTRUE)
+						{
+							if (cmd_ParseCommand(buffer, "exit"))
+							{
+								break;
+							}
+
+							Machine_Settings.Idealangle =
+								cmd_ParseInteger(
+									String(buffer),
+									"angle",
+									Machine_Settings.Idealangle,
+									10,
+									35);
+
+							SerialPrintf("> Angle updated: %d\n",
+										Machine_Settings.Idealangle);
+						}
+
+						// -------- EXIT CHECK --------
+						SerialPrintf("> Exit setup? (yes/no)\n");
+
+						if (xQueueReceive(cliMessageQueue, buffer, portMAX_DELAY) == pdTRUE)
+						{
+							if (cmd_ParseCommand(buffer, "yes"))
+							{
+								setupRunning = false;
+							}
+						}
+					}
+
+					SerialPrintf("> Setup complete\n");
+					SerialPrintf("> Final settings: pressure=%.20f angle=%d\n",
+								Machine_Settings.IdealPressure,
+								Machine_Settings.Idealangle);
 				}
 				else if (cmd_ParseCommand(buffer, "help"))
 				{
@@ -85,14 +159,14 @@ void task_CommandHandler(void* param)
 					SerialPrintf("  cpu   - show CPU and system info\n");
 					SerialPrintf("  ver   - show software version info\n");
 					SerialPrintf("  help  - show this help message\n");
-					SerialPrintf("  reset - reset the system\n");
+					SerialPrintf("  reset.Hard - reset the system\n");
+					SerialPrintf("  reset.Soft - reset Estop\n");
 					SerialPrintf("  setup - set pressure and angle\n");
-					SerialPrintf("    usage: setup pressure=<value> angle=<value>\n");
 					SerialPrintf("  start - start the control loop\n");
 				}
 				else
                 {
-					// SerialPrintf("> invalid command\n");
+					SerialPrintf("> invalid command\n");
                 }
             }
         }

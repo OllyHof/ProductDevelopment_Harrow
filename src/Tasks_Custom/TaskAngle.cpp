@@ -109,3 +109,8 @@ void TaskAngle(void *pvParameters)
     taskSleep(10);
 }
 
+void Estop_Angle()
+{
+    io_SetBit_Analog(PIN_ANGLE_MOTOR_PWM, 0); // Stop the motor immediately
+}
+

@@ -61,13 +61,13 @@
 #include "Tasks_Framework/TaskCLIHandler.h"
 #include "Tasks_Framework/TaskCommandHandler.h"
 
-#if (HARDWARE_CONNECTED == HARDWARE_HARROW)
-    #include "Tasks_Custom/TaskBrakes.h" // implemented; verify hardware mapping
-    #include "Tasks_Custom/TaskCommunicate.h" // implemented
-    #include "Tasks_Custom/TaskPressure.h" // implemented
-    #include "Tasks_Custom/TaskAngle.h" // implemented (needs review)
-    #include "Tasks_Custom/TaskStatusLight.h"
-#endif // HARDWARE_CONNECTED
+
+#include "Tasks_Custom/TaskBrakes.h" // implemented; verify hardware mapping
+#include "Tasks_Custom/TaskCommunicate.h" // implemented
+#include "Tasks_Custom/TaskPressure.h" // implemented
+#include "Tasks_Custom/TaskAngle.h" // implemented (needs review)
+#include "Tasks_Custom/TaskStatusLight.h"
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Global declarations, task handles
@@ -83,9 +83,12 @@ xTaskHandle handle_PressureTask = NULL;
 xTaskHandle handle_AngleTask = NULL;
 xTaskHandle handle_StatusLightTask = NULL;
 xTaskHandle handle_TestTask = NULL;
+xTaskHandle handle_ESTOPHandlerTask = NULL;
 
 SemaphoreHandle_t xControlLoopSemaphore = NULL;
 SemaphoreHandle_t xHandleStartControlLoop = NULL;
+SemaphoreHandle_t xEstopSemaphore = NULL;
+SemaphoreHandle_t xResetSemaphore = NULL;
 
 CommunicationData_t Machine_Settings = {
     .Idealangle = 0,
@@ -95,6 +98,9 @@ CommunicationData_t Machine_Settings = {
 void StartUserTasks(void);
 void TaskControlLoop(void *pvParameters);
 void TestTask(void *pvParameters);
+void IRAM_ATTR buttonISR();
+void ESTOPHandler(void *pvParameters);
+
 ///////////////////////////////////////////////////////////////////////////////
 // wrapper, simplified version of xTaskCreatePinnedToCore
 
@@ -127,33 +133,18 @@ bool platformInit(void)
     bool result = true;
     uint8_t nDevices = 0;
 
-    #if (HARDWARE_CONNECTED == HARDWARE_TESTBOARD)
-        SerialPrintf("> initializing hardware Testboard\n");
-        io_Init();
-        led_Init();
-        button_Init();
-        spi_Init();
-        qc_Init();
-        dac_Init();
-        i2cOK  = i2c_Init();
-        oledOK = oled_Init();
-        uartOK = uart_Init();
+    SerialPrintf("> initializing hardware Testboard\n");
+    //io_Init();
+    led_Init();
+    button_Init();
+    spi_Init();
+    qc_Init();
+    dac_Init();
+    
+    i2cOK  = i2c_Init();
+    oledOK = oled_Init();
+    uartOK = uart_Init();
 
-    #elif (HARDWARE_CONNECTED == HARDWARE_HARROW)
-        SerialPrintf("> initializing hardware Harrow\n");
-        io_Init();
-        led_Init();
-        button_Init();
-        spi_Init();
-        qc_Init();
-        dac_Init();
-        i2cOK  = i2c_Init();
-        oledOK = true; // oled_Init(); // NO OLED ON HARROW
-        uartOK = uart_Init();
-
-    #else
-        SerialPrintf("> no hardware connected, skipping hardware initialization\n");
-    #endif // HARDWARE_CONNECTED
 
 	result = i2cOK && oledOK && uartOK;
 
@@ -206,13 +197,12 @@ void setup()
 
    	SerialPrintf("> setup done: %s\n", (result == true) ? "OK" : "FAILED");
 
-#if (HARDWARE_CONNECTED == HARDWARE_TESTBOARD)    
-        oled_Clear();
-        oled_WriteLine(0, "RTSW",             ALIGN_CENTER);
-        oled_WriteLine(1, "VKM PD",  ALIGN_CENTER);
-        oled_WriteLine(2, "Wiedeg",          ALIGN_CENTER);
-        oled_WriteLine(3, "V0.1",               ALIGN_CENTER);
-#endif // HARDWARE_CONNECTED
+
+    oled_Clear();
+    oled_WriteLine(0, "RTSW",             ALIGN_CENTER);
+    oled_WriteLine(1, "VKM PD",  ALIGN_CENTER);
+    oled_WriteLine(2, "Wiedeg",          ALIGN_CENTER);
+    oled_WriteLine(3, "V0.1",               ALIGN_CENTER);
 
     // start user tasks here:
     StartUserTasks();
@@ -232,19 +222,25 @@ void setup()
 void StartUserTasks(void)
 {
     BaseType_t result = pdFAIL;
-    #if (HARDWARE_CONNECTED == HARDWARE_HARROW)
-        SerialPrintf("> starting user tasks for Harrow\n");
+
+    xControlLoopSemaphore = xSemaphoreCreateBinary();
+    xHandleStartControlLoop = xSemaphoreCreateBinary();
+    xEstopSemaphore = xSemaphoreCreateBinary();
+    xResetSemaphore = xSemaphoreCreateBinary();
+
+    SerialPrintf("> starting user tasks for Harrow\n");
 // CAN Functions, Not implemented yet, use cmd interface for now
 //    result &= platformTaskCreate(TaskCommunicate_Receive, NULL, "task_communicate_rx", &handle_CommunicateTask);
 //    result &= platformTaskCreate(TaskCommunicate_Send, NULL, "task_communicate_tx", &handle_CommunicateSendTask);
 //    result &= platformTaskCreate(TaskControlLoop, NULL, "task_control_loop", &handle_ControlLoopTask);
 //    result &= platformTaskCreate(MachineStatus, NULL, "task_status", &handle_StatusLightTask);
     result &= platformTaskCreate(TestTask, NULL, "TestTask", &handle_TestTask);
-    #else
-        SerialPrintf("> no user tasks defined for current hardware configuration\n");
-    #endif // HARDWARE_CONNECTED
-    xControlLoopSemaphore = xSemaphoreCreateBinary();
-    xHandleStartControlLoop = xSemaphoreCreateBinary();
+    result &= platformTaskCreate(ESTOPHandler, NULL, "task_estop_handler", &handle_ESTOPHandlerTask);
+    
+    interrupt_AttachHandler(buttonISR, PIN_BUTTON_ESTOP, FALLING); // Attach button interrupt to ESTOP pin on falling edge
+//    interrupt_Enable(PIN_BUTTON_ESTOP); // Enable interrupt for ESTOP pin
+    
+    vTaskPrioritySet(handle_ESTOPHandlerTask, 3); // Set ESTOPHandlerTask to higher priority for testing purposes
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -283,15 +279,46 @@ void TaskControlLoop(void *pvParameters)
     }
 }
 
-/*
+
 void IRAM_ATTR buttonISR()
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xSemaphoreGiveFromISR(xControlLoopSemaphore, &xHigherPriorityTaskWoken);
+    xSemaphoreGiveFromISR(xEstopSemaphore, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
-*/
 
+void ESTOPHandler(void *pvParameters)
+{
+    while (true)
+    {
+        xSemaphoreTake(xEstopSemaphore, portMAX_DELAY);
+            SerialPrintf("> ESTOP button pressed! Initiating emergency stop...\n");
+
+            taskStatusLight(STATUS_ERROR_HARD);
+            Estop_Brake();
+            if (handle_ControlLoopTask != NULL){vTaskDelete(handle_ControlLoopTask);}
+            if (handle_PressureTask != NULL){vTaskDelete(handle_PressureTask);}
+            if (handle_AngleTask != NULL){vTaskDelete(handle_AngleTask);}
+
+            Estop_Pressure();
+            Estop_Angle();
+            SerialPrintf("> Emergency stop actions executed.\n");
+
+            while (digitalRead(PIN_BUTTON_ESTOP) == LOW) // Wait until button is released
+            {
+                taskSleep(100); // Sleep to debounce and prevent busy-waiting
+                SerialPrintf("> Current Button state = %d", digitalRead(PIN_BUTTON_ESTOP));
+            }
+
+            SerialPrintf("> System is now in a safe state. Please reset using Reset.Soft command to resume operation.\n");
+            taskStatusLight(STATUS_ERROR_SOFT);
+            
+            xSemaphoreTake(xResetSemaphore, portMAX_DELAY);
+            
+            SerialPrintf("> Reset signal received. Restarting system...\n");
+            platformTaskCreate(TaskControlLoop, NULL, "task_control_loop", &handle_ControlLoopTask); // Restart control loop task
+    }
+}
 void TestTask(void *pvParameters)
 {
     while (true)

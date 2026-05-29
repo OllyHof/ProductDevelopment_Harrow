@@ -10,4 +10,5 @@
 #ifndef TASKPRESSURE_H_
 #define TASKPRESSURE_H_
 void TaskPressure(void *pvParameters);
+void Estop_Pressure();
 #endif // TASKPRESSURE_H_

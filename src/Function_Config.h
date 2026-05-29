@@ -28,7 +28,6 @@
 #define STATUS_WARNING           0x06 // Red + Yellow Solid (warning condition)
 #define STATUS_DISABLED          0x07 // All LEDs Off (offline/disabled)
 #define STATUS_MAINTENANCE       0x08 // All Colors Blinking (diagnostic/service mode)
-#define STATUS_WORKING           0x09 // Green + Yellow Blinking (angle adjustment in progress)
 
 // TaskCommunicate
 typedef struct
@@ -39,6 +38,7 @@ typedef struct
 
 extern CommunicationData_t Machine_Settings;
 extern SemaphoreHandle_t xHandleStartControlLoop;
+extern SemaphoreHandle_t xResetSemaphore; // Semaphore to signal ESTOP reset
 
 
 #endif // FUNCTION_CONFIG_H

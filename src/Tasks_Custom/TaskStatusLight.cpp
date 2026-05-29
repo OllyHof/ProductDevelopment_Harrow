@@ -21,6 +21,7 @@
 #include "TaskStatusLight.h"
 #include "Function_Config.h"
 #include "Hardware_Config.h"
+#include "InfoRTOS.h"
 
 extern TaskHandle_t handle_PressureTask;
 extern TaskHandle_t handle_AngleTask;
@@ -66,13 +67,24 @@ static bool isTaskActive(TaskHandle_t handle)
 
 static bool hasFatalError(void)
 {
-    // Replace with actual fatal error detection using sensors, watchdogs, or error flags.
+    // if (
+    // eTaskGetState(handle_ESTOPHandlerTask) == eDeleted || 
+    // eTaskGetState(handle_ESTOPHandlerTask) == eInvalid ||
+    // handle_ESTOPHandlerTask == NULL ||
+
+    // )
+    // {
+    //     return true; // Control loop task is not running, indicating a critical failure
+    // }
     return false;
 }
 
 static bool hasSoftError(void)
 {
-    // Replace with actual non-critical error detection if required.
+    if (eTaskGetState(handle_ControlLoopTask) == eDeleted || eTaskGetState(handle_ControlLoopTask) == eInvalid)
+    {
+        return true; // Control loop task is not running, indicating a critical failure
+    }
     return false;
 }
 
