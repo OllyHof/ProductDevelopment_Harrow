@@ -62,12 +62,12 @@ void task_CommandHandler(void* param)
 				{
 					info_Version();
 				}
-				else if (cmd_ParseCommand(buffer, "reset.Hard"))
+				else if (cmd_ParseCommand(buffer, "reset.hard"))
 				{
 					SerialPrintf("> resetting system...\n");
 					esp_restart();
 				}
-				else if (cmd_ParseCommand(buffer, "reset.Soft"))
+				else if (cmd_ParseCommand(buffer, "reset.soft"))
 				{
 					SerialPrintf("> resetting ESTOP...\n");
 					xSemaphoreGive(xResetSemaphore); // Signal ESTOP handler to reset the system
@@ -77,6 +77,13 @@ void task_CommandHandler(void* param)
 				else if (cmd_ParseCommand(buffer, "start"))
 				{
 					SerialPrintf("> starting control loop...\n");
+					xSemaphoreGive(xHandleStartControlLoop); // Signal control loop to start
+				}
+				else if (cmd_ParseCommand(buffer, "shutdown"))
+				{
+					SerialPrintf("> Setting Machine settings to resting values...\n");
+					Machine_Settings = {0,0};
+					SerialPrintf("> Applying Machine Settings...");
 					xSemaphoreGive(xHandleStartControlLoop); // Signal control loop to start
 				}
 				else if (cmd_ParseCommand(buffer, "setup"))
@@ -159,10 +166,11 @@ void task_CommandHandler(void* param)
 					SerialPrintf("  cpu   - show CPU and system info\n");
 					SerialPrintf("  ver   - show software version info\n");
 					SerialPrintf("  help  - show this help message\n");
-					SerialPrintf("  reset.Hard - reset the system\n");
-					SerialPrintf("  reset.Soft - reset Estop\n");
+					SerialPrintf("  reset.hard - reset the system\n");
+					SerialPrintf("  reset.soft - reset Estop\n");
 					SerialPrintf("  setup - set pressure and angle\n");
 					SerialPrintf("  start - start the control loop\n");
+					SerialPrintf("  shutdown - make machine ready for storage \n");
 				}
 				else
                 {
