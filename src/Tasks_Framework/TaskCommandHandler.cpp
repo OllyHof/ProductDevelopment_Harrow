@@ -27,6 +27,7 @@
 #include "InfoRTOS.h"
 #include "TaskCLIHandler.h"
 #include "TaskCommandHandler.h"
+#include "Function_Config.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 // void task_CommandHandler(void* param)
@@ -60,6 +61,34 @@ void task_CommandHandler(void* param)
 				else if (cmd_ParseCommand(buffer, "ver"))
 				{
 					info_Version();
+				}
+				else if (cmd_ParseCommand(buffer, "Setup"))
+				{
+					Machine_Settings.IdealPressure = cmd_ParseFloat(buffer, "pressure", Machine_Settings.IdealPressure, 1.0, 3.5);
+					Machine_Settings.Idealangle = cmd_ParseInteger(buffer, "angle", Machine_Settings.Idealangle, 10, 35);
+					SerialPrintf("> updated settings: Pressure=%.2f, Angle=%d\n", Machine_Settings.IdealPressure, Machine_Settings.Idealangle);
+				}
+				else if (cmd_ParseCommand(buffer, "Reset"))
+				{
+					SerialPrintf("> resetting system...\n");
+					esp_restart();
+				}
+				else if (cmd_ParseCommand(buffer, "Start"))
+				{
+					SerialPrintf("> starting control loop...\n");
+					xSemaphoreGive(xHandleStartControlLoop); // Signal control loop to start
+				}
+				else if (cmd_ParseCommand(buffer, "help"))
+				{
+					SerialPrintf("> available commands:\n");
+					SerialPrintf("  stats - show RTOS task info\n");
+					SerialPrintf("  cpu   - show CPU and system info\n");
+					SerialPrintf("  ver   - show software version info\n");
+					SerialPrintf("  help  - show this help message\n");
+					SerialPrintf("  reset - reset the system\n");
+					SerialPrintf("  setup - set pressure and angle\n");
+					SerialPrintf("    usage: setup pressure=<value> angle=<value>\n");
+					SerialPrintf("  start - start the control loop\n");
 				}
 				else
                 {

@@ -82,11 +82,19 @@ xTaskHandle handle_ControlLoopTask = NULL;
 xTaskHandle handle_PressureTask = NULL;
 xTaskHandle handle_AngleTask = NULL;
 xTaskHandle handle_StatusLightTask = NULL;
+xTaskHandle handle_TestTask = NULL;
 
 SemaphoreHandle_t xControlLoopSemaphore = NULL;
+SemaphoreHandle_t xHandleStartControlLoop = NULL;
+
+CommunicationData_t Machine_Settings = {
+    .Idealangle = 0,
+    .IdealPressure = 0.0f
+};
 
 void StartUserTasks(void);
 void TaskControlLoop(void *pvParameters);
+void TestTask(void *pvParameters);
 ///////////////////////////////////////////////////////////////////////////////
 // wrapper, simplified version of xTaskCreatePinnedToCore
 
@@ -226,14 +234,17 @@ void StartUserTasks(void)
     BaseType_t result = pdFAIL;
     #if (HARDWARE_CONNECTED == HARDWARE_HARROW)
         SerialPrintf("> starting user tasks for Harrow\n");
-    result &= platformTaskCreate(TaskCommunicate_Receive, NULL, "task_communicate_rx", &handle_CommunicateTask);
-    result &= platformTaskCreate(TaskCommunicate_Send, NULL, "task_communicate_tx", &handle_CommunicateSendTask);
-    result &= platformTaskCreate(TaskControlLoop, NULL, "task_control_loop", &handle_ControlLoopTask);
-    result &= platformTaskCreate(MachineStatus, NULL, "task_status", &handle_StatusLightTask);
+// CAN Functions, Not implemented yet, use cmd interface for now
+//    result &= platformTaskCreate(TaskCommunicate_Receive, NULL, "task_communicate_rx", &handle_CommunicateTask);
+//    result &= platformTaskCreate(TaskCommunicate_Send, NULL, "task_communicate_tx", &handle_CommunicateSendTask);
+//    result &= platformTaskCreate(TaskControlLoop, NULL, "task_control_loop", &handle_ControlLoopTask);
+//    result &= platformTaskCreate(MachineStatus, NULL, "task_status", &handle_StatusLightTask);
+    result &= platformTaskCreate(TestTask, NULL, "TestTask", &handle_TestTask);
     #else
         SerialPrintf("> no user tasks defined for current hardware configuration\n");
     #endif // HARDWARE_CONNECTED
     xControlLoopSemaphore = xSemaphoreCreateBinary();
+    xHandleStartControlLoop = xSemaphoreCreateBinary();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -272,9 +283,25 @@ void TaskControlLoop(void *pvParameters)
     }
 }
 
+/*
+void IRAM_ATTR buttonISR()
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    xSemaphoreGiveFromISR(xControlLoopSemaphore, &xHigherPriorityTaskWoken);
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
+*/
 
-
-
+void TestTask(void *pvParameters)
+{
+    while (true)
+    {
+        xSemaphoreTake(xHandleStartControlLoop, portMAX_DELAY);
+        SerialPrintf("> TestTask is running...\n");
+        SerialPrintf("> Machine_Settings: Idealangle = %d, IdealPressure = %.2f\n", Machine_Settings.Idealangle, Machine_Settings.IdealPressure);
+        taskSleep(100);
+    }
+}
 ///////////////////////////////////////////////////////////////////////////////
 // void loop()
 

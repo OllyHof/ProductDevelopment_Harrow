@@ -63,7 +63,7 @@ void info_Tasks(void)
 
 	SerialPrintf("--- %d tasks registered, %d tasks executing ---\n", g_nTasksRegistered, nTasks);
 	SerialPrintf("------------------------------------------\n");
-	SerialPrintf("%2s %s       %s     %s   %s\n", "id", "task name", "handle", "state", "HWM");
+	SerialPrintf("%2s %s       %s     %s   %s	%s\n", "id", "task name", "handle", "state", "HWM", "Priority");
 	SerialPrintf("------------------------------------------\n");
 
 	for (count = 0; count < g_nTasksRegistered; count++)
@@ -79,7 +79,7 @@ void info_Tasks(void)
 			highWaterMark = uxTaskGetStackHighWaterMark(handle);
 		}
 
-		SerialPrintf("%2d %-15s 0x%08x %-7s %4d\n", count + 1, taskName, handle, GetTaskState(state), highWaterMark);
+		SerialPrintf("%2d %-15s 0x%08x %-7s %4d %d\n", count + 1, taskName, handle, GetTaskState(state), highWaterMark, uxTaskPriorityGet(handle));
 	}
 }
 

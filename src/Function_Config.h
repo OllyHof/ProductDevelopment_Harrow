@@ -30,4 +30,15 @@
 #define STATUS_MAINTENANCE       0x08 // All Colors Blinking (diagnostic/service mode)
 #define STATUS_WORKING           0x09 // Green + Yellow Blinking (angle adjustment in progress)
 
+// TaskCommunicate
+typedef struct
+{
+    uint32_t Idealangle; // 
+    float IdealPressure;
+} CommunicationData_t;
+
+extern CommunicationData_t Machine_Settings;
+extern SemaphoreHandle_t xHandleStartControlLoop;
+
+
 #endif // FUNCTION_CONFIG_H
