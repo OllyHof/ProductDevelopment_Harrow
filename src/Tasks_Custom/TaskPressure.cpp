@@ -46,9 +46,11 @@ typedef struct
 MotorConfig_t motorConfigs[] = 
 {
     {PIN_PRESSURE_MOTOR_SEL_1, PIN_BRAKE_UPPER_1, 0}, // Pressure channel 1
+    /* Section commented out since it won't be used in the current machine configuration
     {PIN_PRESSURE_MOTOR_SEL_2, PIN_BRAKE_UPPER_2, 0}, // Pressure channel 2
     {PIN_PRESSURE_MOTOR_SEL_3, PIN_BRAKE_UPPER_3, 0}, // Pressure channel 3
     {PIN_PRESSURE_MOTOR_SEL_4, PIN_BRAKE_UPPER_4, 0}, // Pressure channel 4
+    */
 };
 
 #define PressureToEncoder 100403.2f            // Conversion factor from requested pressure to encoder counts

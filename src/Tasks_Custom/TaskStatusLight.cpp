@@ -21,6 +21,7 @@
 #include "TaskStatusLight.h"
 #include "Function_Config.h"
 #include "Hardware_Config.h"
+#include "SerialPrintf.h"
 #include "InfoRTOS.h"
 
 extern TaskHandle_t handle_PressureTask;
@@ -137,14 +138,10 @@ void taskStatusLight(uint8_t Status)
     }
     
     LEDConfig config = ledConfigs[Status];
-    #if (HARDWARE_CONNECTED == HARDWARE_HARROW)
         io_SetBit(PIN_TREE_RED, config.red);
         io_SetBit(PIN_TREE_GREEN, config.green);
         io_SetBit(PIN_TREE_YELLOW, config.yellow);
         io_SetBit(PIN_TREE_BLINK, config.blink);
-    #else
-        // If no hardware, print status to serial for testing
         SerialPrintf("Status: 0x%02X - R:%d G:%d Y:%d Blink:%d\n", Status, config.red, config.green, config.yellow, config.blink);
-    #endif // HARDWARE_CONNECTED
 
 }

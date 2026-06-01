@@ -32,10 +32,12 @@ typedef struct
 BrakeConfig_t BrakeConfigs[] = 
 {
     {PIN_BRAKE_UPPER_1, "Brake Upper 1"}, // Pressure channel 1
-    {PIN_BRAKE_UPPER_2, "Brake Upper 2"}, // Pressure channel 2
+	/* Section commented out since it won't be used in the current machine configuration
+	{PIN_BRAKE_UPPER_2, "Brake Upper 2"}, // Pressure channel 2
     {PIN_BRAKE_UPPER_3, "Brake Upper 3"}, // Pressure channel 3
     {PIN_BRAKE_UPPER_4, "Brake Upper 4"}, // Pressure channel 4
 	{PIN_BRAKE_LOWER, "Brake Lower"} // Angle channel
+	*/
 };
 
 
