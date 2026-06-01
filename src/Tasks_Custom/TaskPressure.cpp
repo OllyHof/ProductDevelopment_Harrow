@@ -51,7 +51,7 @@ MotorConfig_t motorConfigs[] =
     {PIN_PRESSURE_MOTOR_SEL_4, PIN_BRAKE_UPPER_4, 0}, // Pressure channel 4
 };
 
-#define PressureToEncoder 1.0f            // Conversion factor from requested pressure to encoder counts
+#define PressureToEncoder 100403.2f            // Conversion factor from requested pressure to encoder counts
 #define Clockwise true                   // Motor direction used for Positive pressure adjustment direction
 #define CounterClockwise false           // Motor direction used for Negative pressure adjustment direction
 #define Error (float)(idealEncoder - motorConfigs[i].EncoderValue)
@@ -72,7 +72,8 @@ void TaskPressure(void *pvParameters)
     for (int i = 0; i < sizeof(motorConfigs) / sizeof(MotorConfig_t); i++)
     {
         MotorConfig_t *config = &motorConfigs[i];
-        uint64_t idealEncoder = Machine_Settings.IdealPressure * PressureToEncoder; // Setpoint in encoder counts
+        float idealEncoder_float = Machine_Settings.IdealPressure * PressureToEncoder; // Setpoint in encoder counts
+        uint64_t idealEncoder = (uint64_t)roundf(idealEncoder_float); // Round to nearest whole count for control
 
         if (ErrorTooHigh)
         {
@@ -123,7 +124,7 @@ void TaskPressure(void *pvParameters)
             {
                 // Brake engagement failure should be handled elsewhere
             }
-
+            
             // Stop the motor once pressure control is complete
             io_SetBit_Analog(PIN_PRESSURE_MOTOR_PWM, 0);
         }

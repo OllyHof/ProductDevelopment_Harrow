@@ -1,270 +1,147 @@
-# VKMPD Wiedeg Electronica
+# VKMPD Wiedeg Electronics Control System
 
 ## Overview
 
-VKMPD Wiedeg Electronica is an ESP32-based embedded control system developed at Avans Hogeschool for the electronic control and actuation of the Wiedeg mechanical platform.
+VKMPD Wiedeg Electronics is an ESP32-based embedded control system developed at Avans University of Applied Sciences for an electronically controlled agricultural harrow (Wiedeg).
 
-The project combines:
+After reviewing the repository structure, task documentation, PlatformIO configuration, and electrical design package, the system consists of a FreeRTOS-based control platform that manages:
 
-- Real-time task scheduling using FreeRTOS
-- Distributed actuator control
-- Relay-driven solenoid management
+- 16 hydraulic solenoids
+- 8 force-adjustment actuators
+- 2 angle-adjustment actuators
 - Encoder feedback processing
-- CAN bus communication
-- Multi-voltage power distribution
-- Embedded motor control systems
+- Emergency stop handling
+- Relay-controlled power distribution
+- CAN bus expansion capability
+- Machine status signalling
 
-The software architecture is modular and task-oriented, allowing the system to scale and remain maintainable during continued hardware and software development.
-
----
-
-## System Architecture
-
-The system is centered around an ESP32-WROOM controller running multiple FreeRTOS tasks.
-
-### Main Functional Subsystems
-
-- Brake and solenoid control
-- Force adjustment actuators
-- Angle adjustment actuators
-- Encoder feedback acquisition
-- Communication handling
-- Status indication and diagnostics
-- Real-time control loop management
-
-### High-Level Architecture
-
-```mermaid
-graph TD
-    ESP32[ESP32-WROOM32]
-
-    ESP32 --> RTOS[FreeRTOS Task Scheduler]
-
-    RTOS --> Brakes[Brake Control Tasks]
-    RTOS --> Pressure[Pressure Control Tasks]
-    RTOS --> Angle[Angle Control Tasks]
-    RTOS --> Comm[Communication Tasks]
-    RTOS --> Status[Status Light Tasks]
-
-    Brakes --> RelayA[Relay Board A K1-K16]
-    Pressure --> RelayB[Relay Board B K17-K32]
-    Status --> RelayB[Relay Board B K17-K32]
-    Angle --> RelayB[Relay Board B K17-K32]
-
-    RelayA --> Solenoids[Solenoid Outputs]
-    RelayB --> Motors[Motor Drivers]
-    RelayB --> MotorsSel[Motor Selection]
-    RelayB --> Signalling[Signalling Lights]
-
-    Motors --> Encoders[Encoder Feedback]
-
-    ESP32 --> CAN[CAN Bus Module]
-    
-    CAN --> Amiga[Amiga by Bonsai Robotics]
-```
+The project is designed around modular FreeRTOS tasks and reusable platform libraries to support future expansion and hardware revisions.
 
 ---
 
-## Hardware Platform
+## Hardware Architecture
 
 ### Main Controller
 
-- ESP32-WROOM32 (38-pin variant)
-- Arduino framework
-- FreeRTOS-based multitasking
-- PlatformIO build environment
+- ESP32-WROOM32 (NodeMCU-32S target)
+- Arduino Framework
+- FreeRTOS Scheduler
+- PlatformIO Build Environment
 
-### Power Distribution
+### Power System
 
-The system operates from a 44V battery input and generates multiple regulated voltage rails.
+The machine is powered from a 44 VDC battery source.
 
-| Voltage Rail | Purpose |
-|---|---|
-| 44VDC | Main battery input |
-| 24VDC | Angle Motor drivers and signaling |
-| 12VDC 40A| Pressure Motor drivers |
-| 12VDC 5A | Solenoids |
-| 5VDC | Logic, encoders, communication, Relays |
+| Rail | Source |
+|--------|--------|
+| 44 VDC | Main battery input |
+| 24 VDC | Angle actuators and signal tower |
+| 12 VDC (40 A) | Force actuator motor drivers |
+| 12 VDC (5 A) | Solenoid bank |
+| 5 VDC | ESP32, encoders, relays and communication |
 
-### Communication
+### Power Converters
 
-- CAN bus interface
-- UART support
-- I2C support
-- SPI support
+- DDR-60L-12
+- DDR-120C-24
+- DDR-15L-5
+- DDR-480C-12
 
-### Relay Control
+---
 
-Two relay boards are used for actuator and solenoid switching:
+## Electrical Subsystems
 
-| Relay Board | Function |
-|---|---|
-| K1-K16 | Solenoid control |
-| K17-K32 | Actuator and signaling control |
+### ESP32 Controller
 
-### Motor Control
+The ESP32 acts as the central control processor and interfaces with:
 
-The platform uses dedicated motor drivers for:
+- Relay Board A (K1-K16)
+- Relay Board B (K17-K32)
+- CAN Bus Module
+- Encoder Inputs
+- Motor Drivers
+- Signal Tower
 
-- Force adjustment actuators
-- Angle adjustment actuators
+### Solenoid Control
 
-Encoder feedback is used for positional and directional control.
+Relay Board A controls sixteen solenoid outputs.
+
+| Relays |
+|----------|
+| K1 – K16 |
+
+The solenoids are powered from the dedicated 12 V supply rail.
+
+### Force Adjustment System
+
+Eight actuator channels are controlled through relay selection and motor driver hardware.
+
+Features:
+
+- Encoder feedback
+- Brake control
+- Direction control
+- PWM speed regulation
+
+### Angle Adjustment System
+
+Two actuator channels provide angle positioning.
+
+Features:
+
+- Quadrature encoder feedback
+- Index pulse support
+- Bidirectional motor control
+
+### Status Tower
+
+Three-color machine status indication:
+
+- Green
+- Yellow
+- Red
+- Solid states
+- Blinking states
 
 ---
 
 ## Software Architecture
 
-The project follows a layered embedded software structure.
+The application is built around FreeRTOS tasks.
 
-```text
-src/
-├── Tasks_Framework/
-├── Tasks_Custom/
-├── Hardware_Config.h
-├── Function_Config.h
-├── Config.h
-└── RTSW_5_ButtonInterrupts_Framework.cpp
-```
-
-### Framework Layer
-
-The framework layer provides reusable RTOS infrastructure and platform abstraction.
-
-#### Included Framework Tasks
+### Framework Tasks
 
 | Task | Purpose |
-|---|---|
-| TaskHeartbeat | System heartbeat and monitoring |
-| TaskCLIHandler | Serial command line interface |
+|--------|----------|
+| TaskHeartbeat | Runtime monitoring |
+| TaskCLIHandler | Serial command interface |
 | TaskCommandHandler | Command processing |
 
-### Custom Application Tasks
-
-Application-specific functionality is implemented inside `Tasks_Custom/`.
+### Custom Tasks
 
 | Task | Purpose |
-|---|---|
+|--------|----------|
 | TaskBrakes | Solenoid brake control |
-| TaskPressure | Pressure and force management |
-| TaskAngle | Angle control and positioning |
-| TaskCommunicate | Communication handling |
-| TaskStatusLight | Tower light and diagnostics |
-
-### RTOS Features
-
-The system uses FreeRTOS with:
-
-- Core-pinned tasks
-- Semaphores
-- Queues
-- Runtime statistics
-- Watchdog support
-- Inter-task communication
+| TaskPressure | Force adjustment control |
+| TaskAngle | Angle positioning control |
+| TaskCommunicate | Communication layer (planned) |
+| TaskStatusLight | Machine status indication |
 
 ---
 
-## Software Dependencies
+## Control Flow
 
-### Build Environment
+Current runtime behaviour:
 
-- PlatformIO
-- Arduino framework for ESP32
-- Espressif32 platform
+1. System boot
+2. Hardware initialization
+3. Task startup
+4. Pressure control execution
+5. Angle control execution
+6. Status reporting
+7. Continuous monitoring
 
-### External Libraries
-
-| Library | Purpose |
-|---|---|
-| ESP32OLEDSSD1306 | OLED display support |
-| I2CEEPROM | EEPROM access |
-| ESP32Encoder | Encoder processing |
-
-### Internal Platform Libraries
-
-The project includes a large set of reusable platform abstraction libraries.
-
-Examples include:
-
-- ADC3208Lib
-- DAC4922Lib
-- IOLib
-- InterruptLib
-- LEDLib
-- OLEDLibESP32
-- QC7366Lib
-- UART740Lib
-- SPILib
-- TaskSleep
-
-These libraries provide hardware abstraction and simplify portability and maintenance.
-
----
-
-## Electrical System Overview
-
-### Power Conversion
-
-The electrical architecture uses multiple DC-DC converters:
-
-| Converter | Function |
-|---|---|
-| DDR-60L-12 | 44V → 12V |
-| DDR-120C-24 | 44V → 24V |
-| DDR-15L-5 | 44V → 5V |
-| DDR-480C-12 | High-current 12V supply |
-
-### Signal Tower
-
-The system includes a multi-state signal tower for status indication:
-
-- Red
-- Yellow
-- Green
-- Blinking state support
-- Continuous state support
-
----
-
-## Development Environment
-
-### Recommended Tools
-
-| Tool | Purpose |
-|---|---|
-| Visual Studio Code | Main IDE |
-| PlatformIO | Build and upload environment |
-| Git | Version control |
-
-### Supported Target
-
-| Target | Framework |
-|---|---|
-| NodeMCU-32S | Arduino |
-
----
-
-## Engineering Notes
-
-- The architecture is designed for modular expansion.
-- Hardware mappings are centralized in configuration headers.
-- Tasks are isolated to improve maintainability and debugging.
-- The project uses hardware abstraction extensively to simplify migration and testing.
-- Several modules remain under active development and verification.
-
----
-
-## Safety and Reliability
-
-The system includes:
-
-- Watchdog integration
-- RTOS task monitoring
-- Heartbeat supervision
-- Isolated control layers
-- Hardware abstraction for safer testing
-
-Additional electrical and mechanical safety measures must be implemented before deployment in production or safety-critical environments.
+Emergency-stop functionality can interrupt all active control loops and place the machine into a safe state.
 
 ---
 
@@ -274,7 +151,6 @@ Additional electrical and mechanical safety measures must be implemented before 
 ProductDevelopment_Harrow/
 ├── include/
 ├── lib/
-│   ├── fmap/
 │   └── platformlibs/
 ├── src/
 │   ├── Tasks_Framework/
@@ -283,37 +159,128 @@ ProductDevelopment_Harrow/
 │   ├── Function_Config.h
 │   ├── Hardware_Config.h
 │   └── RTSW_5_ButtonInterrupts_Framework.cpp
+├── test/
 ├── platformio.ini
 └── README.md
 ```
 
 ---
 
-## Project Information
+## Dependencies
 
-| Item | Value |
-|---|---|
-| Project | VKMPD Wiedeg Electronica |
-| Institution | Avans Hogeschool |
-| Department | Product Development |
-| Platform | ESP32-WROOM32 |
-| Framework | Arduino + FreeRTOS |
-| Build System | PlatformIO |
+### Build Environment
+
+- PlatformIO
+- Espressif32 Platform
+- Arduino Framework
+
+### External Libraries
+
+- ESP32OLEDSSD1306
+- I2CEEPROM
+- ESP32Encoder
+
+### Internal Libraries
+
+The repository includes a large reusable platform abstraction layer providing:
+
+- GPIO abstraction
+- SPI support
+- UART support
+- Interrupt handling
+- OLED support
+- Encoder interfaces
+- DAC/ADC interfaces
+- Task utilities
+
+---
+
+## Current Implementation Status
+
+### Implemented
+
+- Pressure actuator control
+- Angle actuator control
+- Brake handling
+- Encoder feedback
+- Emergency stop processing
+- CLI framework
+- Relay control logic
+- Status light mapping
+
+### Partially Implemented
+
+- Machine status task exists but is not started by default
+- Control-loop sequencing framework exists
+
+### Not Yet Implemented
+
+- TaskCommunicate runtime functionality
+- Active CAN communication layer
+- Complete field validation and tuning
+
+---
+
+## Known Issues
+
+- Communication task is currently a stub.
+- Several GPIO mappings require hardware verification.
+- Pressure-control gains require calibration on production hardware.
+- Angle-control brake logic remains disabled in portions of the implementation.
+- Signal tower may be removed if controller I/O becomes constrained.
+
+---
+
+## Development
+
+Build:
+
+```bash
+pio run
+```
+
+Upload:
+
+```bash
+pio run --target upload
+```
+
+Serial Monitor:
+
+```bash
+pio device monitor
+```
+
+Target board:
+
+```ini
+board = nodemcu-32s
+framework = arduino
+platform = espressif32
+```
+
+---
+
+## Safety Notice
+
+This software was developed as part of an engineering project and should not be considered safety-certified.
+
+Before field deployment:
+
+- Verify all wiring
+- Validate emergency-stop behaviour
+- Verify actuator travel limits
+- Verify encoder calibration
+- Perform full hardware acceptance testing
 
 ---
 
 ## Authors
 
-| Name | Role |
-|---|---|
-| Oliver Hofman | Embedded Software & Electronics |
-| Roel Smeets | Framework Development |
+Avans University of Applied Sciences
 
----
+Primary Developer:
+- Oliver Hofman
 
-## License
-
-This project was developed as part of an educational engineering project at Avans Hogeschool.
-
-Usage, modification, and distribution rights depend on project ownership and institutional agreements.
-
+Framework Support:
+- Roel Smeets

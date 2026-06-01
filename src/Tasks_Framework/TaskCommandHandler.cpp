@@ -114,7 +114,7 @@ void task_CommandHandler(void* param)
 									"pressure",
 									Machine_Settings.IdealPressure,
 									1.0,
-									3.5);
+									2.4);
 
 							SerialPrintf("> Pressure updated: %.2f\n",
 										Machine_Settings.IdealPressure);

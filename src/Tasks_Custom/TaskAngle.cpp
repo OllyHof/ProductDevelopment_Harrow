@@ -63,10 +63,10 @@ void TaskAngle(void *pvParameters)
             CurrentDirection = Clockwise;
         }
 
-        if (taskBrakes(false, PIN_BRAKE_LOWER))
-        {
-            // Brake release failure should be handled by the calling task or error manager.
-        }
+        // if (taskBrakes(false, PIN_BRAKE_LOWER))
+        // {
+        //     // Brake release failure should be handled by the calling task or error manager.
+        // }
 
         while (true)
         {
@@ -91,10 +91,10 @@ void TaskAngle(void *pvParameters)
             taskSleep(10);
         }
 
-        if (taskBrakes(true, PIN_BRAKE_LOWER))
-        {
-            // Brake engagement failure should be handled elsewhere.
-        }
+        // if (taskBrakes(true, PIN_BRAKE_LOWER))
+        // {
+        //     // Brake engagement failure should be handled elsewhere.
+        // }
 
         io_SetBit_Analog(PIN_ANGLE_MOTOR_PWM, 0);
     }
