@@ -130,16 +130,16 @@ void task_CommandHandler(void* param)
 								break;
 							}
 
-							Machine_Settings.Idealangle =
+							Machine_Settings.IdealAngle =
 								cmd_ParseInteger(
 									String(buffer),
 									"angle",
-									Machine_Settings.Idealangle,
+									Machine_Settings.IdealAngle,
 									10,
 									35);
 
 							SerialPrintf("> Angle updated: %d\n",
-										Machine_Settings.Idealangle);
+										Machine_Settings.IdealAngle);
 						}
 
 						// -------- EXIT CHECK --------
@@ -157,7 +157,7 @@ void task_CommandHandler(void* param)
 					SerialPrintf("> Setup complete\n");
 					SerialPrintf("> Final settings: pressure=%.20f angle=%d\n",
 								Machine_Settings.IdealPressure,
-								Machine_Settings.Idealangle);
+								Machine_Settings.IdealAngle);
 				}
 				else if (cmd_ParseCommand(buffer, "help"))
 				{

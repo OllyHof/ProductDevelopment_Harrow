@@ -91,7 +91,7 @@ SemaphoreHandle_t xEstopSemaphore = NULL;
 SemaphoreHandle_t xResetSemaphore = NULL;
 
 CommunicationData_t Machine_Settings = {
-    .Idealangle = 0,
+    .IdealAngle = 0,
     .IdealPressure = 0.0f
 };
 
@@ -325,7 +325,7 @@ void TestTask(void *pvParameters)
     {
         xSemaphoreTake(xHandleStartControlLoop, portMAX_DELAY);
         SerialPrintf("> TestTask is running...\n");
-        SerialPrintf("> Machine_Settings: Idealangle = %d, IdealPressure = %.2f\n", Machine_Settings.Idealangle, Machine_Settings.IdealPressure);
+        SerialPrintf("> Machine_Settings: IdealAngle = %d, IdealPressure = %.2f\n", Machine_Settings.IdealAngle, Machine_Settings.IdealPressure);
         taskSleep(100);
     }
 }

@@ -32,7 +32,7 @@
 // TaskCommunicate
 typedef struct
 {
-    uint32_t Idealangle; // 
+    uint32_t IdealAngle; // 
     float IdealPressure;
 } CommunicationData_t;
 

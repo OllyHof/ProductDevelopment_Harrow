@@ -30,7 +30,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#define AngleToEncoder 1.0f            // Conversion factor from requested angle to encoder counts
+#define AngleToEncoder 512.0f            // Conversion factor from requested angle to encoder counts
 #define Clockwise true                 // Motor direction for increasing encoder count
 #define CounterClockwise false         // Motor direction for decreasing encoder count
 #define ProportionalGain 1.0f          // Proportional gain for PWM output
@@ -46,7 +46,8 @@ extern SemaphoreHandle_t xControlLoopSemaphore;
 void TaskAngle(void *pvParameters)
 {
     uint64_t encoderValue = 0;
-    uint64_t idealEncoder = Machine_Settings.Idealangle * AngleToEncoder;
+    float idealEncoder_float = Machine_Settings.IdealAngle * AngleToEncoder; // Setpoint in encoder counts
+    uint64_t idealEncoder = (uint64_t)roundf(idealEncoder_float); // Round to nearest whole count for control
 
     float error = (float)(idealEncoder - encoderValue);
     
@@ -71,7 +72,6 @@ void TaskAngle(void *pvParameters)
         while (true)
         {
             encoderValue = ReadEncoder(encoderValue, PIN_ANGLE_SENSOR_A, PIN_ANGLE_SENSOR_B);
-            idealEncoder = Machine_Settings.Idealangle * AngleToEncoder;
             error = (float)(idealEncoder - encoderValue);
 
             if (abs(error) <= ErrorThreshold)
