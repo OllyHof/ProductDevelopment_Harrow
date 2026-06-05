@@ -95,6 +95,7 @@ CommunicationData_t Machine_Settings = {
     .IdealPressure = 0.0f
 };
 
+uint8_t nEstopCount = 0;
 void StartUserTasks(void);
 void TaskControlLoop(void *pvParameters);
 void TestTask(void *pvParameters);
@@ -223,10 +224,10 @@ void StartUserTasks(void)
 {
     BaseType_t result = pdFAIL;
 
-    xControlLoopSemaphore = xSemaphoreCreateBinary();
-    xHandleStartControlLoop = xSemaphoreCreateBinary();
-    xEstopSemaphore = xSemaphoreCreateBinary();
-    xResetSemaphore = xSemaphoreCreateBinary();
+    xControlLoopSemaphore = xSemaphoreCreateCounting(1, 0);
+    xHandleStartControlLoop = xSemaphoreCreateCounting(1, 0);
+    xEstopSemaphore = xSemaphoreCreateCounting(1, 0);
+    xResetSemaphore = xSemaphoreCreateCounting(1, 0);
 
     SerialPrintf("> starting user tasks for Harrow\n");
 // CAN Functions, Not implemented yet, use cmd interface for now
@@ -250,38 +251,29 @@ void StartUserTasks(void)
 // Funtions
 void TaskControlLoop(void *pvParameters)
 {
-    BaseType_t result = pdFAIL;
     while (true)
     {
-        if (xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY) == pdTRUE)
-        {
-            result &= platformTaskCreate(TaskPressure, NULL, "task_pressure", &handle_PressureTask);
+        xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
 
-            if (xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY) == pdTRUE)
-            {
-                vTaskDelete(&handle_PressureTask); // Delete pressure task to free resources
-                result &= platformTaskCreate(TaskAngle, NULL, "task_angle", &handle_AngleTask);
+        platformTaskCreate(TaskPressure, NULL, "task_pressure", &handle_PressureTask);
 
-                if (xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY) == pdTRUE)
-                {
-                    vTaskDelete(&handle_AngleTask); // Delete angle task to free resources
-                    
-                    // Control loop cycle complete, can add additional tasks or logic here
-                }
-                
-            }
-            
-                // control loop code here
-        }
-        // control loop code here
+        xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
 
-        vTaskDelay(pdMS_TO_TICKS(100)); // delay to prevent watchdog reset
+        vTaskDelete(handle_PressureTask);
+        handle_PressureTask = NULL;
+
+        platformTaskCreate(TaskAngle, NULL, "task_angle", &handle_AngleTask);
+
+        xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
+
+        vTaskDelete(handle_AngleTask);
+        handle_AngleTask = NULL;
     }
 }
 
-
 void IRAM_ATTR buttonISR()
 {
+    nEstopCount++;
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     xSemaphoreGiveFromISR(xEstopSemaphore, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
@@ -293,7 +285,7 @@ void ESTOPHandler(void *pvParameters)
     {
         xSemaphoreTake(xEstopSemaphore, portMAX_DELAY);
             SerialPrintf("> ESTOP button pressed! Initiating emergency stop...\n");
-
+            SerialPrintf("> Total ESTOP presses: %d\n", nEstopCount);
             taskStatusLight(STATUS_ERROR_HARD);
             Estop_Brake();
             if (handle_ControlLoopTask != NULL){vTaskDelete(handle_ControlLoopTask);}
@@ -307,7 +299,7 @@ void ESTOPHandler(void *pvParameters)
             while (digitalRead(PIN_BUTTON_ESTOP) == LOW) // Wait until button is released
             {
                 taskSleep(100); // Sleep to debounce and prevent busy-waiting
-                SerialPrintf("> Current Button state = %d", digitalRead(PIN_BUTTON_ESTOP));
+            //    SerialPrintf("> Current Button state = %d", digitalRead(PIN_BUTTON_ESTOP));
             }
 
             SerialPrintf("> System is now in a safe state. Please reset using Reset.Soft command to resume operation.\n");
@@ -329,6 +321,8 @@ void TestTask(void *pvParameters)
         taskSleep(100);
     }
 }
+
+
 ///////////////////////////////////////////////////////////////////////////////
 // void loop()
 

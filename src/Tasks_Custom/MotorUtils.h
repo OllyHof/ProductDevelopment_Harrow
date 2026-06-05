@@ -15,6 +15,10 @@
 
 uint8_t LimitPWM(uint64_t voltage, uint8_t maxVoltage = 255, uint8_t minVoltage = 0);
 void ChangeDirection(gpio_num_t directionPin, bool direction);
-uint64_t ReadEncoder(uint64_t encoderValue, gpio_num_t EncoderPinA, gpio_num_t EncoderPinB);
+void InitEncoder(gpio_num_t EncoderPinA, gpio_num_t EncoderPinB);
+void DeinitEncoder();
+void ResetEncoder(int64_t initialValue = 0);
+int64_t ReadEncoder();
+int64_t GetEncoderValue();
 
 #endif // MOTORUTILS_H_

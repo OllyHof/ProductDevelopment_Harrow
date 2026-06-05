@@ -40,7 +40,7 @@ typedef struct
 {
     gpio_num_t MotorID;     // Motor select GPIO for the pressure channel
     gpio_num_t BrakeID;     // Brake control GPIO for the pressure channel
-    int EncoderValue;       // Latest encoder count used for closed-loop control
+    int64_t EncoderValue;   // Latest encoder count used for closed-loop control
 } MotorConfig_t;
 
 MotorConfig_t motorConfigs[] = 
@@ -71,11 +71,14 @@ bool* CurrentDirectionPtr = &CurrentDirection; // Shared direction state used by
 // the requested pressure target.
 void TaskPressure(void *pvParameters)
 {
+    InitEncoder(PIN_PRESSURE_SENSOR_A, PIN_PRESSURE_SENSOR_B);
+
     for (int i = 0; i < sizeof(motorConfigs) / sizeof(MotorConfig_t); i++)
     {
         MotorConfig_t *config = &motorConfigs[i];
         float idealEncoder_float = Machine_Settings.IdealPressure * PressureToEncoder; // Setpoint in encoder counts
-        uint64_t idealEncoder = (uint64_t)roundf(idealEncoder_float); // Round to nearest whole count for control
+        int64_t idealEncoder = (int64_t)roundf(idealEncoder_float); // Round to nearest whole count for control
+        config->EncoderValue = ReadEncoder(); // Get initial encoder value for this channel
 
         if (ErrorTooHigh)
         {
@@ -108,7 +111,7 @@ void TaskPressure(void *pvParameters)
                 while (ErrorTooHigh)
                 {
                     // Sample encoder feedback while the motor is active
-                    config->EncoderValue = ReadEncoder(config->EncoderValue, PIN_PRESSURE_SENSOR_A, PIN_PRESSURE_SENSOR_B);
+                    config->EncoderValue = ReadEncoder();
                     if (Error < 0)
                     {
                         // Reverse direction if the measured value has crossed the setpoint
@@ -129,6 +132,7 @@ void TaskPressure(void *pvParameters)
             
             // Stop the motor once pressure control is complete
             io_SetBit_Analog(PIN_PRESSURE_MOTOR_PWM, 0);
+            DeinitEncoder();
         }
     }
 

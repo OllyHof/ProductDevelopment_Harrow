@@ -138,10 +138,12 @@ void taskStatusLight(uint8_t Status)
     }
     
     LEDConfig config = ledConfigs[Status];
+    /*
         io_SetBit(PIN_TREE_RED, config.red);
         io_SetBit(PIN_TREE_GREEN, config.green);
         io_SetBit(PIN_TREE_YELLOW, config.yellow);
         io_SetBit(PIN_TREE_BLINK, config.blink);
+    */
         SerialPrintf("Status: 0x%02X - R:%d G:%d Y:%d Blink:%d\n", Status, config.red, config.green, config.yellow, config.blink);
 
 }

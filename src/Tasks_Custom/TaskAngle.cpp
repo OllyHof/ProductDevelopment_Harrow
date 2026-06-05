@@ -45,9 +45,11 @@ extern SemaphoreHandle_t xControlLoopSemaphore;
 // feedback, and drives the motor until the target angle is reached.
 void TaskAngle(void *pvParameters)
 {
-    uint64_t encoderValue = 0;
+    int64_t encoderValue = 0;
+    InitEncoder(PIN_ANGLE_SENSOR_A, PIN_ANGLE_SENSOR_B);
+    encoderValue = ReadEncoder();
     float idealEncoder_float = Machine_Settings.IdealAngle * AngleToEncoder; // Setpoint in encoder counts
-    uint64_t idealEncoder = (uint64_t)roundf(idealEncoder_float); // Round to nearest whole count for control
+    int64_t idealEncoder = (int64_t)roundf(idealEncoder_float); // Round to nearest whole count for control
 
     float error = (float)(idealEncoder - encoderValue);
     
@@ -71,7 +73,7 @@ void TaskAngle(void *pvParameters)
 
         while (true)
         {
-            encoderValue = ReadEncoder(encoderValue, PIN_ANGLE_SENSOR_A, PIN_ANGLE_SENSOR_B);
+            encoderValue = ReadEncoder();
             error = (float)(idealEncoder - encoderValue);
 
             if (abs(error) <= ErrorThreshold)
@@ -95,8 +97,9 @@ void TaskAngle(void *pvParameters)
         // {
         //     // Brake engagement failure should be handled elsewhere.
         // }
-
+        
         io_SetBit_Analog(PIN_ANGLE_MOTOR_PWM, 0);
+        DeinitEncoder();
     }
 
     xSemaphoreGive(xControlLoopSemaphore); // Signal control loop that angle control is complete

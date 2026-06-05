@@ -155,7 +155,7 @@ void task_CommandHandler(void* param)
 					}
 
 					SerialPrintf("> Setup complete\n");
-					SerialPrintf("> Final settings: pressure=%.20f angle=%d\n",
+					SerialPrintf("> Final settings: pressure=%.2f angle=%d\n",
 								Machine_Settings.IdealPressure,
 								Machine_Settings.IdealAngle);
 				}
