@@ -21,6 +21,7 @@
 #include <stdint.h>
 #include "driver/gpio.h"
 #include "Hardware_Config.h"
+#include "SerialPrintf.h"
 
 #include "TaskAngle.h"
 #include "MotorUtils.h"
@@ -34,7 +35,8 @@
 #define Clockwise true                 // Motor direction for increasing encoder count
 #define CounterClockwise false         // Motor direction for decreasing encoder count
 #define ProportionalGain 1.0f          // Proportional gain for PWM output
-#define ErrorThreshold 5               // Minimum encoder error before motor activation
+#define IntegralGain ProportionalGain/10.0f            // Integral gain for angle control
+#define DerivativeGain 3.0f*ProportionalGain       // Derivative gain for angle control
 
 static bool CurrentDirection = Clockwise;
 extern SemaphoreHandle_t xControlLoopSemaphore;
@@ -48,12 +50,18 @@ void TaskAngle(void *pvParameters)
     int64_t encoderValue = 0;
     InitEncoder(PIN_ANGLE_SENSOR_A, PIN_ANGLE_SENSOR_B);
     encoderValue = ReadEncoder();
-    float idealEncoder_float = Machine_Settings.IdealAngle * AngleToEncoder; // Setpoint in encoder counts
-    int64_t idealEncoder = (int64_t)roundf(idealEncoder_float); // Round to nearest whole count for control
+    float idealEncoder_float = Machine_Settings.IdealAngle * AngleToEncoder;
+    int64_t idealEncoder = (int64_t)roundf(idealEncoder_float);
 
     float error = (float)(idealEncoder - encoderValue);
-    
-    if (abs(error) > ErrorThreshold)
+    float integral = 0.0f;
+    float prevError = error;
+    uint32_t lastTimeUs = micros();
+
+    SerialPrintf("> TaskAngle start: targetAngle=%d targetEncoder=%lld currentEncoder=%lld error=%.2f\n",
+                 Machine_Settings.IdealAngle, idealEncoder, encoderValue, error);
+
+    if (fabsf(error) > ANGLE_ERROR_THRESHOLD)
     {
         if (encoderValue > idealEncoder)
         {
@@ -66,20 +74,26 @@ void TaskAngle(void *pvParameters)
             CurrentDirection = Clockwise;
         }
 
+        SerialPrintf("> TaskAngle direction=%s\n",
+                     CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
+
         // if (taskBrakes(false, PIN_BRAKE_LOWER))
         // {
         //     // Brake release failure should be handled by the calling task or error manager.
         // }
 
-        while (true)
+        while (fabsf(error) > ANGLE_ERROR_THRESHOLD)
         {
+            uint32_t nowUs = micros();
+            float dtSeconds = (float)(nowUs - lastTimeUs) * 1e-6f;
+            if (dtSeconds <= 0.0f)
+            {
+                dtSeconds = 1e-6f;
+            }
+            lastTimeUs = nowUs;
+
             encoderValue = ReadEncoder();
             error = (float)(idealEncoder - encoderValue);
-
-            if (abs(error) <= ErrorThreshold)
-            {
-                break;
-            }
 
             if ((error < 0 && CurrentDirection == Clockwise) || (error > 0 && CurrentDirection == CounterClockwise))
             {
@@ -87,8 +101,23 @@ void TaskAngle(void *pvParameters)
                 ChangeDirection(PIN_ANGLE_MOTOR_DIR, CurrentDirection);
             }
 
-            uint8_t pwmValue = LimitPWM((uint64_t)((abs(error) * 255.0f) / idealEncoder), 255, 0);
+            float derivative = (error - prevError) / dtSeconds;
+            integral += error * dtSeconds;
+            float pidOutput = ProportionalGain * error + IntegralGain * integral + DerivativeGain * derivative;
+            float pwmMagnitude = fabsf(pidOutput);
+            if (pwmMagnitude > 255.0f)
+            {
+                pwmMagnitude = 255.0f;
+                integral -= error * dtSeconds; // simple anti-windup
+            }
+            prevError = error;
+
+            uint8_t pwmValue = (uint8_t)LimitPWM((uint64_t)pwmMagnitude, 255, 0);
             io_SetBit_Analog(PIN_ANGLE_MOTOR_PWM, pwmValue);
+
+            SerialPrintf("> TaskAngle loop: encoder=%lld error=%.2f pwm=%u dir=%s\n",
+                         encoderValue, error, pwmValue,
+                         CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
 
             taskSleep(10);
         }
@@ -98,18 +127,16 @@ void TaskAngle(void *pvParameters)
         //     // Brake engagement failure should be handled elsewhere.
         // }
         
-        io_SetBit_Analog(PIN_ANGLE_MOTOR_PWM, 0);
-        DeinitEncoder();
+
     }
+    
+    io_SetBit_Analog(PIN_ANGLE_MOTOR_PWM, 0);
+    SerialPrintf("> TaskAngle complete: stopped motor and deinitialized encoder\n");
+    DeinitEncoder();
 
     xSemaphoreGive(xControlLoopSemaphore); // Signal control loop that angle control is complete
     
-    while (true)
-    {
-        vTaskDelay(portMAX_DELAY); // Suspend the task indefinitely after completing control
-    }
-
-    taskSleep(10);
+    vTaskDelete(NULL);
 }
 
 void Estop_Angle()

@@ -12,6 +12,7 @@
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include <IOLib.h>
+#include "SerialPrintf.h"
 #include "MotorUtils.h"
 
 static volatile int64_t s_encoderCount = 0;
@@ -23,10 +24,12 @@ uint8_t LimitPWM(uint64_t voltage, uint8_t maxVoltage, uint8_t minVoltage)
 {
     if (voltage > maxVoltage)
     {
+        SerialPrintf("> LimitPWM: clamped %llu to %u\n", voltage, maxVoltage);
         voltage = maxVoltage;
     }
     else if (voltage < minVoltage)
     {
+        SerialPrintf("> LimitPWM: raised %llu to %u\n", voltage, minVoltage);
         voltage = minVoltage;
     }
 
@@ -35,6 +38,8 @@ uint8_t LimitPWM(uint64_t voltage, uint8_t maxVoltage, uint8_t minVoltage)
 
 void ChangeDirection(gpio_num_t directionPin, bool direction)
 {
+    SerialPrintf("> ChangeDirection: pin=%d direction=%s\n", (int)directionPin,
+                 direction ? "true" : "false");
     io_SetBit(directionPin, direction);
 }
 

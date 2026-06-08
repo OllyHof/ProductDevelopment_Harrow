@@ -254,20 +254,11 @@ void TaskControlLoop(void *pvParameters)
     while (true)
     {
         xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
-
         platformTaskCreate(TaskPressure, NULL, "task_pressure", &handle_PressureTask);
-
         xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
-
-        vTaskDelete(handle_PressureTask);
-        handle_PressureTask = NULL;
-
         platformTaskCreate(TaskAngle, NULL, "task_angle", &handle_AngleTask);
-
         xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
-
-        vTaskDelete(handle_AngleTask);
-        handle_AngleTask = NULL;
+        
     }
 }
 

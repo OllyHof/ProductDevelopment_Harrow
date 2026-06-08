@@ -29,6 +29,15 @@
 #define STATUS_DISABLED          0x07 // All LEDs Off (offline/disabled)
 #define STATUS_MAINTENANCE       0x08 // All Colors Blinking (diagnostic/service mode)
 
+///////////////////////////////////////////////////////////////////////////////
+// Control Loop Thresholds - scaled for full operating ranges
+// Angle: 10-35 degrees (25° full range = 12,800 counts), threshold ~0.059°
+// Pressure: 1-2.4 kg (1.4 kg full range = 140,564 counts), threshold ~0.002 kg
+
+#define ANGLE_ERROR_THRESHOLD    30     // encoder counts (±0.059°)
+#define PRESSURE_ERROR_THRESHOLD 200    // encoder counts (±0.002 kg)
+
+///////////////////////////////////////////////////////////////////////////////
 // TaskCommunicate
 typedef struct
 {
