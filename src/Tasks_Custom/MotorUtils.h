@@ -20,5 +20,6 @@ void DeinitEncoder();
 void ResetEncoder(int64_t initialValue = 0);
 int64_t ReadEncoder();
 int64_t GetEncoderValue();
+void EncoderISR();
 
 #endif // MOTORUTILS_H_

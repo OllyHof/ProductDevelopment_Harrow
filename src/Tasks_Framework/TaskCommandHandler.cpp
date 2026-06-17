@@ -78,6 +78,7 @@ void task_CommandHandler(void* param)
 				{
 					SerialPrintf("> starting control loop...\n");
 					xSemaphoreGive(xHandleStartControlLoop); // Signal control loop to start
+					SerialPrintf("> Control loop should now be running. Use 'stats' command to check task status.\n");
 				}
 				else if (cmd_ParseCommand(buffer, "shutdown"))
 				{

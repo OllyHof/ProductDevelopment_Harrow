@@ -40,7 +40,7 @@ void ChangeDirection(gpio_num_t directionPin, bool direction)
 {
     SerialPrintf("> ChangeDirection: pin=%d direction=%s\n", (int)directionPin,
                  direction ? "true" : "false");
-    io_SetBit(directionPin, direction);
+    digitalWrite(directionPin, direction);
 }
 
 void InitEncoder(gpio_num_t EncoderPinA, gpio_num_t EncoderPinB)

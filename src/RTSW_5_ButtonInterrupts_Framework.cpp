@@ -95,12 +95,31 @@ CommunicationData_t Machine_Settings = {
     .IdealPressure = 0.0f
 };
 
+typedef struct {
+    gpio_num_t pin;
+} IOPinConfig_t;
+
+IOPinConfig_t ioPinConfigs[] = {
+    {PIN_BRAKE_UPPER_1},
+    {PIN_BRAKE_UPPER_2},
+    {PIN_BRAKE_UPPER_3},
+    {PIN_BRAKE_UPPER_4},
+    {PIN_BRAKE_LOWER},
+    {PIN_PRESSURE_MOTOR_DIR},
+    {PIN_PRESSURE_MOTOR_SEL_1},
+    {PIN_PRESSURE_MOTOR_SEL_2},
+    {PIN_PRESSURE_MOTOR_SEL_3},
+    {PIN_PRESSURE_MOTOR_SEL_4},
+    {PIN_ANGLE_MOTOR_DIR},
+};
+
 uint8_t nEstopCount = 0;
 void StartUserTasks(void);
 void TaskControlLoop(void *pvParameters);
 void TestTask(void *pvParameters);
 void IRAM_ATTR buttonISR();
 void ESTOPHandler(void *pvParameters);
+void IO_INIT();
 
 ///////////////////////////////////////////////////////////////////////////////
 // wrapper, simplified version of xTaskCreatePinnedToCore
@@ -141,6 +160,7 @@ bool platformInit(void)
     spi_Init();
     qc_Init();
     dac_Init();
+    IO_INIT();
     
     i2cOK  = i2c_Init();
     oledOK = oled_Init();
@@ -233,11 +253,10 @@ void StartUserTasks(void)
 // CAN Functions, Not implemented yet, use cmd interface for now
 //    result &= platformTaskCreate(TaskCommunicate_Receive, NULL, "task_communicate_rx", &handle_CommunicateTask);
 //    result &= platformTaskCreate(TaskCommunicate_Send, NULL, "task_communicate_tx", &handle_CommunicateSendTask);
-//    result &= platformTaskCreate(TaskControlLoop, NULL, "task_control_loop", &handle_ControlLoopTask);
+    result &= platformTaskCreate(TaskControlLoop, NULL, "task_control_loop", &handle_ControlLoopTask);
 //    result &= platformTaskCreate(MachineStatus, NULL, "task_status", &handle_StatusLightTask);
-    result &= platformTaskCreate(TestTask, NULL, "TestTask", &handle_TestTask);
+//    result &= platformTaskCreate(TestTask, NULL, "TestTask", &handle_TestTask);
     result &= platformTaskCreate(ESTOPHandler, NULL, "task_estop_handler", &handle_ESTOPHandlerTask);
-    
     interrupt_AttachHandler(buttonISR, PIN_BUTTON_ESTOP, FALLING); // Attach button interrupt to ESTOP pin on falling edge
 //    interrupt_Enable(PIN_BUTTON_ESTOP); // Enable interrupt for ESTOP pin
     
@@ -251,12 +270,18 @@ void StartUserTasks(void)
 // Funtions
 void TaskControlLoop(void *pvParameters)
 {
+    BaseType_t result = pdFAIL;
     while (true)
     {
-        xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
-        platformTaskCreate(TaskPressure, NULL, "task_pressure", &handle_PressureTask);
-        xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
-        platformTaskCreate(TaskAngle, NULL, "task_angle", &handle_AngleTask);
+        xSemaphoreTake(xHandleStartControlLoop, portMAX_DELAY);
+        SerialPrintf("> TaskControlLoop received start command...\n");
+        SerialPrintf("> TaskControlLoop is running...\n");
+        SerialPrintf("> Machine_Settings: IdealAngle = %d, IdealPressure = %.2f\n", Machine_Settings.IdealAngle, Machine_Settings.IdealPressure);
+        taskSleep(100);
+
+        //result &= platformTaskCreate(TaskPressure, NULL, "task_pressure", &handle_PressureTask);
+        //xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
+        result &= platformTaskCreate(TaskAngle, NULL, "task_angle", &handle_AngleTask);
         xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
         
     }
@@ -313,6 +338,20 @@ void TestTask(void *pvParameters)
     }
 }
 
+void IO_INIT()
+{
+    for (int i = 0; i < (sizeof(ioPinConfigs) / sizeof(ioPinConfigs[0])); i++)
+    {
+        pinMode(ioPinConfigs[i].pin, OUTPUT); // Set all pins to output mode
+        digitalWrite(ioPinConfigs[i].pin, HIGH); // Set all pins to high to prevent unintended outputs
+    }
+
+    pinMode(PIN_PRESSURE_MOTOR_PWM, OUTPUT); // Set PWM pin to analog mode for motor control
+    analogWrite(PIN_PRESSURE_MOTOR_PWM, 0); // Initialize PWM output to 0 (motor off)
+
+    pinMode(PIN_ANGLE_MOTOR_PWM, OUTPUT); // Set PWM pin to analog mode for motor control
+    analogWrite(PIN_ANGLE_MOTOR_PWM, 0); // Initialize PWM output to 0 (motor off)
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // void loop()

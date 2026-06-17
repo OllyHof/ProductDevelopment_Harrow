@@ -57,9 +57,9 @@ MotorConfig_t motorConfigs[] =
 #define PressureToEncoder 100403.2f            // Conversion factor from requested pressure to encoder counts
 #define Clockwise true                   // Motor direction used for Positive pressure adjustment direction
 #define CounterClockwise false           // Motor direction used for Negative pressure adjustment direction
-#define ProportionalGain 1.0f            // Proportional control gain for PWM output
-#define IntegralGain 0.0004f            // Integral gain for pressure control
-#define DerivativeGain 0.00005f         // Derivative gain for pressure control
+#define ProportionalGain 2.0f            // Proportional control gain for PWM output
+#define IntegralGain 0.004f            // Integral gain for pressure control
+#define DerivativeGain 0.4f         // Derivative gain for pressure control
 
 bool CurrentDirection = Clockwise;
 bool* CurrentDirectionPtr = &CurrentDirection; // Shared direction state used by ChangeDirection
@@ -91,7 +91,7 @@ void TaskPressure(void *pvParameters)
         if (fabsf(error) > PRESSURE_ERROR_THRESHOLD)
         {
             // Enable the selected pressure motor output
-            io_SetBit(config->MotorID, true);
+            digitalWrite(config->MotorID, LOW);
 
             // Determine initial direction based on setpoint vs current value
             if (config->EncoderValue > idealEncoder)
@@ -115,7 +115,7 @@ void TaskPressure(void *pvParameters)
             }
 
             // Single control loop - update every iteration
-            while (fabsf(error) > PRESSURE_ERROR_THRESHOLD)
+            while (true)
             {
                 uint32_t nowUs = micros();
                 float dtSeconds = (float)(nowUs - lastTimeUs) * 1e-6f;
@@ -149,8 +149,8 @@ void TaskPressure(void *pvParameters)
                 prevError = error;
 
                 uint8_t pwmValue = (uint8_t)LimitPWM((uint64_t)pwmMagnitude, 255, 0);
-                io_SetBit_Analog(PIN_PRESSURE_MOTOR_PWM, pwmValue);
-
+                analogWrite(PIN_PRESSURE_MOTOR_PWM, pwmValue);
+/*
                 SerialPrintf("> TaskPressure channel=%d loop encoder=%lld error=%.2f pwm=%u dir=%s\n",
                              i + 1,
                              config->EncoderValue,
@@ -158,7 +158,17 @@ void TaskPressure(void *pvParameters)
                              pwmValue,
                              CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
 
-                taskSleep(10); // Yield to other tasks and allow sensor settling
+                taskSleep(100); // Yield to other tasks and allow sensor settling
+*/              if (fabsf(error) <= PRESSURE_ERROR_THRESHOLD)
+                {
+                    SerialPrintf("> TaskPressure channel=%d target reached: encoder=%lld error=%.2f pwm=%u dir=%s\n",
+                                 i + 1,
+                                 config->EncoderValue,
+                                 error,
+                                 pwmValue,
+                                 CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
+                    break; // Exit the control loop when target is reached
+                }
             }
 
             // Engage the brake after the setpoint has been reached
@@ -168,7 +178,7 @@ void TaskPressure(void *pvParameters)
             }
 
             // Stop the motor once pressure control is complete
-            io_SetBit_Analog(PIN_PRESSURE_MOTOR_PWM, 0);
+            analogWrite(PIN_PRESSURE_MOTOR_PWM, 0);
             SerialPrintf("> TaskPressure channel=%d complete: motor stopped and brake engaged\n", i + 1);
             DeinitEncoder();
         }
@@ -185,6 +195,6 @@ void Estop_Pressure()
     for(int i = 0; i < sizeof(motorConfigs) / sizeof(MotorConfig_t); i++)
     {
         MotorConfig_t *config = &motorConfigs[i];
-        io_SetBit_Analog(PIN_PRESSURE_MOTOR_PWM, 0); // Stop the motor immediately
+        analogWrite(PIN_PRESSURE_MOTOR_PWM, 0); // Stop the motor immediately
     }
 }

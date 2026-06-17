@@ -35,7 +35,7 @@
 // Pressure: 1-2.4 kg (1.4 kg full range = 140,564 counts), threshold ~0.002 kg
 
 #define ANGLE_ERROR_THRESHOLD    30     // encoder counts (±0.059°)
-#define PRESSURE_ERROR_THRESHOLD 200    // encoder counts (±0.002 kg)
+#define PRESSURE_ERROR_THRESHOLD 0    // encoder counts (±0.002 kg)
 
 ///////////////////////////////////////////////////////////////////////////////
 // TaskCommunicate

@@ -63,7 +63,7 @@ void TaskAngle(void *pvParameters)
 
     if (fabsf(error) > ANGLE_ERROR_THRESHOLD)
     {
-        if (encoderValue > idealEncoder)
+        if (encoderValue < idealEncoder)
         {
             ChangeDirection(PIN_ANGLE_MOTOR_DIR, CounterClockwise);
             CurrentDirection = CounterClockwise;
@@ -113,14 +113,15 @@ void TaskAngle(void *pvParameters)
             prevError = error;
 
             uint8_t pwmValue = (uint8_t)LimitPWM((uint64_t)pwmMagnitude, 255, 0);
-            io_SetBit_Analog(PIN_ANGLE_MOTOR_PWM, pwmValue);
+            analogWrite(PIN_ANGLE_MOTOR_PWM, pwmValue);
 
             SerialPrintf("> TaskAngle loop: encoder=%lld error=%.2f pwm=%u dir=%s\n",
                          encoderValue, error, pwmValue,
                          CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
 
-            taskSleep(10);
-        }
+            taskSleep(100);
+
+            }
 
         // if (taskBrakes(true, PIN_BRAKE_LOWER))
         // {
@@ -130,7 +131,7 @@ void TaskAngle(void *pvParameters)
 
     }
     
-    io_SetBit_Analog(PIN_ANGLE_MOTOR_PWM, 0);
+    analogWrite(PIN_ANGLE_MOTOR_PWM, 0);
     SerialPrintf("> TaskAngle complete: stopped motor and deinitialized encoder\n");
     DeinitEncoder();
 
@@ -141,6 +142,6 @@ void TaskAngle(void *pvParameters)
 
 void Estop_Angle()
 {
-    io_SetBit_Analog(PIN_ANGLE_MOTOR_PWM, 0); // Stop the motor immediately
+    analogWrite(PIN_ANGLE_MOTOR_PWM, 0); // Stop the motor immediately
 }
 
