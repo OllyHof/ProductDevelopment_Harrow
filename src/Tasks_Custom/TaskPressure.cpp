@@ -55,14 +55,14 @@ MotorConfig_t motorConfigs[] =
 };
 
 #define PressureToEncoder 100403.2f            // Conversion factor from requested pressure to encoder counts
-#define Clockwise true                   // Motor direction used for Positive pressure adjustment direction
-#define CounterClockwise false           // Motor direction used for Negative pressure adjustment direction
-#define ProportionalGain 2.0f            // Proportional control gain for PWM output
-#define IntegralGain 0.004f            // Integral gain for pressure control
-#define DerivativeGain 0.4f         // Derivative gain for pressure control
+#define Clockwise LOW                   // Motor direction used for Positive pressure adjustment direction
+#define CounterClockwise HIGH           // Motor direction used for Negative pressure adjustment direction
+#define ProportionalGain 5.0f          // Proportional gain for PWM output
+#define IntegralGain ProportionalGain/10.0f            // Integral gain for angle control
+#define DerivativeGain 3.0f*ProportionalGain       // Derivative gain for angle control
 
-bool CurrentDirection = Clockwise;
-bool* CurrentDirectionPtr = &CurrentDirection; // Shared direction state used by ChangeDirection
+uint8_t CurrentDirection = Clockwise;
+uint8_t* CurrentDirectionPtr = &CurrentDirection; // Shared direction state used by ChangeDirection
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Pressure control task

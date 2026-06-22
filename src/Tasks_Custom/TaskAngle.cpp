@@ -31,14 +31,14 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#define AngleToEncoder 512.0f            // Conversion factor from requested angle to encoder counts
-#define Clockwise true                 // Motor direction for increasing encoder count
-#define CounterClockwise false         // Motor direction for decreasing encoder count
-#define ProportionalGain 1.0f          // Proportional gain for PWM output
+#define AngleToEncoder 1.0f            // Conversion factor from requested angle to encoder counts
+#define Clockwise LOW                // Motor direction for increasing encoder count
+#define CounterClockwise HIGH         // Motor direction for decreasing encoder count
+#define ProportionalGain 1000.0f          // Proportional gain for PWM output
 #define IntegralGain ProportionalGain/10.0f            // Integral gain for angle control
 #define DerivativeGain 3.0f*ProportionalGain       // Derivative gain for angle control
 
-static bool CurrentDirection = Clockwise;
+static uint8_t CurrentDirection = Clockwise;
 extern SemaphoreHandle_t xControlLoopSemaphore;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -63,7 +63,7 @@ void TaskAngle(void *pvParameters)
 
     if (fabsf(error) > ANGLE_ERROR_THRESHOLD)
     {
-        if (encoderValue < idealEncoder)
+        if (encoderValue > idealEncoder)
         {
             ChangeDirection(PIN_ANGLE_MOTOR_DIR, CounterClockwise);
             CurrentDirection = CounterClockwise;

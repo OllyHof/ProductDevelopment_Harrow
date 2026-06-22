@@ -257,6 +257,7 @@ void StartUserTasks(void)
 //    result &= platformTaskCreate(MachineStatus, NULL, "task_status", &handle_StatusLightTask);
 //    result &= platformTaskCreate(TestTask, NULL, "TestTask", &handle_TestTask);
     result &= platformTaskCreate(ESTOPHandler, NULL, "task_estop_handler", &handle_ESTOPHandlerTask);
+    pinMode(PIN_BUTTON_ESTOP, INPUT_PULLUP); // Initialize ESTOP button pin with internal pull-up
     interrupt_AttachHandler(buttonISR, PIN_BUTTON_ESTOP, FALLING); // Attach button interrupt to ESTOP pin on falling edge
 //    interrupt_Enable(PIN_BUTTON_ESTOP); // Enable interrupt for ESTOP pin
     
@@ -279,8 +280,8 @@ void TaskControlLoop(void *pvParameters)
         SerialPrintf("> Machine_Settings: IdealAngle = %d, IdealPressure = %.2f\n", Machine_Settings.IdealAngle, Machine_Settings.IdealPressure);
         taskSleep(100);
 
-        //result &= platformTaskCreate(TaskPressure, NULL, "task_pressure", &handle_PressureTask);
-        //xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
+        result &= platformTaskCreate(TaskPressure, NULL, "task_pressure", &handle_PressureTask);
+        xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
         result &= platformTaskCreate(TaskAngle, NULL, "task_angle", &handle_AngleTask);
         xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
         
@@ -340,17 +341,34 @@ void TestTask(void *pvParameters)
 
 void IO_INIT()
 {
+    //while(true){
     for (int i = 0; i < (sizeof(ioPinConfigs) / sizeof(ioPinConfigs[0])); i++)
     {
         pinMode(ioPinConfigs[i].pin, OUTPUT); // Set all pins to output mode
         digitalWrite(ioPinConfigs[i].pin, HIGH); // Set all pins to high to prevent unintended outputs
+    //    taskSleep(100); // Small delay to ensure proper initialization
     }
+    /*
+        for (int i = 0; i < (sizeof(ioPinConfigs) / sizeof(ioPinConfigs[0])); i++)
+        {
+            pinMode(ioPinConfigs[i].pin, OUTPUT); // Set all pins to output mode
+            digitalWrite(ioPinConfigs[i].pin, LOW); // Set all pins to high to prevent unintended outputs
+            taskSleep(100); // Small delay to ensure proper initialization
+        }
+    */
+    //}
 
     pinMode(PIN_PRESSURE_MOTOR_PWM, OUTPUT); // Set PWM pin to analog mode for motor control
     analogWrite(PIN_PRESSURE_MOTOR_PWM, 0); // Initialize PWM output to 0 (motor off)
 
     pinMode(PIN_ANGLE_MOTOR_PWM, OUTPUT); // Set PWM pin to analog mode for motor control
     analogWrite(PIN_ANGLE_MOTOR_PWM, 0); // Initialize PWM output to 0 (motor off)
+
+    // Initialize encoder pins with pull-up to prevent floating and noise issues
+    pinMode(PIN_PRESSURE_SENSOR_A, INPUT_PULLUP);
+    pinMode(PIN_PRESSURE_SENSOR_B, INPUT_PULLUP);
+    pinMode(PIN_ANGLE_SENSOR_A, INPUT_PULLUP);
+    pinMode(PIN_ANGLE_SENSOR_B, INPUT_PULLUP);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

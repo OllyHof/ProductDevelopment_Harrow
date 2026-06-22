@@ -36,10 +36,10 @@ uint8_t LimitPWM(uint64_t voltage, uint8_t maxVoltage, uint8_t minVoltage)
     return (uint8_t)voltage;
 }
 
-void ChangeDirection(gpio_num_t directionPin, bool direction)
+void ChangeDirection(gpio_num_t directionPin, uint8_t direction)
 {
     SerialPrintf("> ChangeDirection: pin=%d direction=%s\n", (int)directionPin,
-                 direction ? "true" : "false");
+                 direction == LOW ? "Clockwise" : "CounterClockwise");
     digitalWrite(directionPin, direction);
 }
 
