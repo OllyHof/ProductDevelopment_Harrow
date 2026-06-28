@@ -151,7 +151,9 @@ void TaskPressure(void *pvParameters)
 
                 uint8_t pwmValue = (uint8_t)LimitPWM((uint64_t)pwmMagnitude, 255, 0);
                 analogWrite(PIN_PRESSURE_MOTOR_PWM, pwmValue);
-/*
+
+                if (motorinfoEnabled)
+                {
                 SerialPrintf("> TaskPressure channel=%d loop encoder=%lld error=%.2f pwm=%u dir=%s\n",
                              i + 1,
                              config->EncoderValue,
@@ -159,8 +161,10 @@ void TaskPressure(void *pvParameters)
                              pwmValue,
                              CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
 
-                taskSleep(100); // Yield to other tasks and allow sensor settling
-*/              if (fabsf(error) <= PRESSURE_ERROR_THRESHOLD)
+                taskSleep(100); // Slow down to not crash terminal with too many messages
+                }
+
+                if (fabsf(error) <= PRESSURE_ERROR_THRESHOLD)
                 {
                     SerialPrintf("> TaskPressure channel=%d target reached: encoder=%lld error=%.2f pwm=%u dir=%s\n",
                                  i + 1,
@@ -169,6 +173,13 @@ void TaskPressure(void *pvParameters)
                                  pwmValue,
                                  CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
                     break; // Exit the control loop when target is reached
+                }
+                if (xSemaphoreTake(xDebugSemaphore, 0) == pdTRUE)
+                {
+                    config->EncoderValue = idealEncoder; // Assume ideal position for assessment
+                    SerialPrintf("> TaskPressure channel=%d assessment mode: encoder assumed ideal\n", i + 1);
+                    break; // Exit the control loop for assessment
+                    
                 }
             }
 

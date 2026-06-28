@@ -84,8 +84,8 @@ void task_CommandHandler(void* param)
 				{
 					SerialPrintf("> Starting machine setup\n");
 					SerialPrintf("> Input format:\n");
-					SerialPrintf("  pressure=<value>\n");
-					SerialPrintf("  angle=<value>\n");
+					SerialPrintf("  pressure=<value>, between 1.0 and 2.4 kg\n");
+					SerialPrintf("  angle=<value>, between 10 and 35 degrees\n");
 					SerialPrintf("> Type 'exit' anytime to quit\n\n");
 
 					bool setupRunning = true;
@@ -153,17 +153,40 @@ void task_CommandHandler(void* param)
 								Machine_Settings.IdealPressure,
 								Machine_Settings.IdealAngle);
 				}
+				else if (cmd_ParseCommand(buffer, "debug.enc.skip"))
+				{
+					SerialPrintf("> Skipping encoder check\n");
+					xSemaphoreGive(xDebugSemaphore); // Signal that encoder is good
+				}
+				else if (cmd_ParseCommand(buffer, "debug.motor.info.en"))
+				{
+					SerialPrintf("> Enabling motor info display\n");
+					motorinfoEnabled = true; // Signal that motor info display is enabled
+				}
+				else if (cmd_ParseCommand(buffer, "debug.motor.info.dis"))
+				{
+					SerialPrintf("> Disabling motor info display\n");
+					motorinfoEnabled = false; // Signal that motor info display is disabled
+				}
 				else if (cmd_ParseCommand(buffer, "help"))
 				{
 					SerialPrintf("> available commands:\n");
-					SerialPrintf("  stats - show RTOS task info\n");
-					SerialPrintf("  cpu   - show CPU and system info\n");
-					SerialPrintf("  ver   - show software version info\n");
-					SerialPrintf("  help  - show this help message\n");
-					SerialPrintf("  reset - reset the system\n");
-					SerialPrintf("  setup - set pressure and angle\n");
-					SerialPrintf("  start - start the control loop\n");
+					SerialPrintf("  stats 	 - show RTOS task info\n");
+					SerialPrintf("  cpu   	 - show CPU and system info\n");
+					SerialPrintf("  ver   	 - show software version info\n");
+					SerialPrintf("  help  	 - show this help message\n");
+					SerialPrintf("  reset  	 - reset the system\n");
+					SerialPrintf("  setup 	 - set pressure and angle\n");
+					SerialPrintf("  start 	 - start the control loop\n");
 					SerialPrintf("  shutdown - make machine ready for storage \n");
+				}
+				else if (cmd_ParseCommand(buffer, "debug"))
+				{
+					SerialPrintf("> Available debug commands:\n");
+					SerialPrintf("  debug     	   - show this help message\n");
+					SerialPrintf("  debug.enc.skip - skip encoder check for assessment\n");
+					SerialPrintf("  debug.motor.info.en - enable motor info display\n");
+					SerialPrintf("  debug.motor.info.dis - disable motor info display\n");
 				}
 				else
                 {

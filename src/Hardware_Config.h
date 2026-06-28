@@ -38,25 +38,25 @@
 
     // Pressure pins
     #define PIN_PRESSURE_MOTOR_PWM    GPIO_NUM_22
-    #define PIN_PRESSURE_MOTOR_DIR    GPIO_NUM_23 // IF LOW IT WINDS UP PRESSURE, IF HIGH IT RELEASES PRESSURE (written before hardware was available, may need to be changed)
+    #define PIN_PRESSURE_MOTOR_DIR    GPIO_NUM_23 
 
-    #define PIN_PRESSURE_MOTOR_SEL_1  GPIO_NUM_13 // IF LOW ENABLES M1 AND M2 (written before hardware was available, may need to be changed)
-    #define PIN_PRESSURE_MOTOR_SEL_2  GPIO_NUM_17 // IF LOW ENABLES M3 AND M4 (written before hardware was available, may need to be changed)
-    #define PIN_PRESSURE_MOTOR_SEL_3  GPIO_NUM_14 // IF LOW ENABLES M5 AND M6 (written before hardware was available, may need to be changed)
-    #define PIN_PRESSURE_MOTOR_SEL_4  GPIO_NUM_33 // IF LOW ENABLES M7 AND M8 (written before hardware was available, may need to be changed)
+    #define PIN_PRESSURE_MOTOR_SEL_1  GPIO_NUM_13 // IF LOW ENABLES M1 AND M2 
+    #define PIN_PRESSURE_MOTOR_SEL_2  GPIO_NUM_17 // IF LOW ENABLES M3 AND M4
+    #define PIN_PRESSURE_MOTOR_SEL_3  GPIO_NUM_14 // IF LOW ENABLES M5 AND M6 
+    #define PIN_PRESSURE_MOTOR_SEL_4  GPIO_NUM_33 // IF LOW ENABLES M7 AND M8 
 
     #define PIN_PRESSURE_SENSOR_A     GPIO_NUM_26 // HALL SENSOR PHASE A
     #define PIN_PRESSURE_SENSOR_B     GPIO_NUM_25 // HALL SENSOR PHASE B
 
     // Angle Pins
     #define PIN_ANGLE_MOTOR_PWM       GPIO_NUM_27
-    #define PIN_ANGLE_MOTOR_DIR       GPIO_NUM_32 // UNKNOWN CONTROL CONFIG (written before hardware was available, needs to be changed)
+    #define PIN_ANGLE_MOTOR_DIR       GPIO_NUM_32 
 
     #define PIN_ANGLE_SENSOR_A        GPIO_NUM_34 // HALL SENSOR PHASE A
     #define PIN_ANGLE_SENSOR_B        GPIO_NUM_35 // HALL SENSOR PHASE B
     #define PIN_ANGLE_SENSOR_INDEX    0 // HALL SENSOR INDEX  - NOT USED IN CURRENT CONFIG
 
     // Button Pins
-    #define PIN_BUTTON_ESTOP          GPIO_NUM_18 // IF LOW IT TRIGGERS THE ESTOP (written before hardware was available, may need to be changed)
+    #define PIN_BUTTON_ESTOP          GPIO_NUM_18 // IF LOW IT TRIGGERS THE ESTOP 
 
 #endif // HARDWARE_CONFIG_H;

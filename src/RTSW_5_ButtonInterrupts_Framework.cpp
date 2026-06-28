@@ -250,6 +250,7 @@ void StartUserTasks(void)
     xHandleStartControlLoop = xSemaphoreCreateCounting(1, 0);
     xEstopSemaphore = xSemaphoreCreateCounting(1, 0);
     xResetSemaphore = xSemaphoreCreateCounting(1, 0);
+    xDebugSemaphore = xSemaphoreCreateCounting(1, 0);
 
     SerialPrintf("> starting user tasks for Harrow\n");
 // CAN Functions, Not implemented yet, use cmd interface for now
@@ -273,6 +274,7 @@ void StartUserTasks(void)
 // Funtions
 void TaskControlLoop(void *pvParameters)
 {
+    motorinfoEnabled = false; // Initialize motor info display flag to false
     BaseType_t result = pdFAIL;
     while (true)
     {

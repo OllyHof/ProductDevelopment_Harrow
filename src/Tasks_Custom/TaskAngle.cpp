@@ -116,13 +116,21 @@ void TaskAngle(void *pvParameters)
             uint8_t pwmValue = (uint8_t)LimitPWM((uint64_t)pwmMagnitude, 255, 0);
             analogWrite(PIN_ANGLE_MOTOR_PWM, pwmValue);
 
-            SerialPrintf("> TaskAngle loop: encoder=%lld error=%.2f pwm=%u dir=%s\n",
-                         encoderValue, error, pwmValue,
-                         CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
-
-            taskSleep(100);
-
+            if (motorinfoEnabled)
+            {
+                SerialPrintf("> TaskAngle loop: encoder=%lld error=%.2f pwm=%u dir=%s\n",
+                             encoderValue, error, pwmValue,
+                             CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
+                   taskSleep(100); // Slow down to not crash terminal with too many messages
             }
+
+            if (xSemaphoreTake(xDebugSemaphore, 0) == pdTRUE)
+            {
+                encoderValue = idealEncoder; // Assume ideal position for assessment
+                SerialPrintf("> TaskAngle assessment mode: encoder assumed ideal\n");
+            }
+
+        }
 
         // if (taskBrakes(true, PIN_BRAKE_LOWER))
         // {
