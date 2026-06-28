@@ -54,12 +54,14 @@ MotorConfig_t motorConfigs[] =
     */
 };
 
-#define PressureToEncoder 1000.2f            // Conversion factor from requested pressure to encoder counts
+#define PressureToEncoder 838.4f            // Conversion factor from requested pressure to encoder counts 
+// 2.4 input = 0.5 output shaft rotation = 2012 encoder counts
+// => 1 input unit = 838.4 counts
 #define Clockwise HIGH                   // Motor direction used for Positive pressure adjustment direction
 #define CounterClockwise LOW           // Motor direction used for Negative pressure adjustment direction
 #define ProportionalGain 5.0f          // Proportional gain for PWM output
 #define IntegralGain ProportionalGain/10.0f            // Integral gain for angle control
-#define DerivativeGain 3.0f*ProportionalGain       // Derivative gain for angle control
+#define DerivativeGain ProportionalGain/5.0f       // Derivative gain for angle control
 
 uint8_t CurrentDirection = Clockwise;
 uint8_t* CurrentDirectionPtr = &CurrentDirection; // Shared direction state used by ChangeDirection
@@ -129,24 +131,27 @@ void TaskPressure(void *pvParameters)
                 // Sample encoder feedback
                 config->EncoderValue = ReadEncoder();
                 error = (float)(idealEncoder - config->EncoderValue);
-
-                // Check if error crossed zero; reverse direction if needed
-                if ((error < 0 && CurrentDirection == Clockwise) ||
-                    (error > 0 && CurrentDirection == CounterClockwise))
-                {
-                    CurrentDirection = !CurrentDirection;
-                    ChangeDirection(PIN_PRESSURE_MOTOR_DIR, CurrentDirection);
-                }
-
                 float derivative = (error - prevError) / dtSeconds;
                 integral += error * dtSeconds;
-                float pidOutput = ProportionalGain * error + IntegralGain * integral + DerivativeGain * derivative;
-                float pwmMagnitude = fabsf(pidOutput);
-                if (pwmMagnitude > 255.0f)
+                float pidOutput = ProportionalGain * error
+                + IntegralGain * integral
+                + DerivativeGain * derivative;
+
+                uint8_t direction = (pidOutput >= 0) ? Clockwise : CounterClockwise;
+
+                if (direction != CurrentDirection)
                 {
-                    pwmMagnitude = 255.0f;
-                    integral -= error * dtSeconds; // simple anti-windup
+                    ChangeDirection(PIN_PRESSURE_MOTOR_DIR, direction);
+                    CurrentDirection = direction;
                 }
+
+                float pwmMagnitude = fabsf(pidOutput);
+                if (pwmMagnitude >= 255.0f)
+                {
+                    integral -= error * dtSeconds;
+                    integral = constrain(integral, -10000, 10000);
+                }   
+
                 prevError = error;
 
                 uint8_t pwmValue = (uint8_t)LimitPWM((uint64_t)pwmMagnitude, 255, 0);

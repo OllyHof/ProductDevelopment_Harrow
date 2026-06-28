@@ -50,5 +50,6 @@ extern SemaphoreHandle_t xHandleStartControlLoop;
 extern SemaphoreHandle_t xResetSemaphore; // Semaphore to signal ESTOP reset
 extern SemaphoreHandle_t xDebugSemaphore; // Semaphore to signal assessment task
 extern bool motorinfoEnabled; // Flag to indicate if motor info display is enabled
+extern bool RealTimeModeEnabled; // Flag to indicate if real-time mode is enabled
 
 #endif // FUNCTION_CONFIG_H

@@ -3,6 +3,7 @@
 // TaskCLIHandler.cpp
 //
 // Authors: 	Roel Smeets
+//			  	Oliver Hofman
 // Edit date: 	02-06-2025
 //
 // Joel Brigida
@@ -168,6 +169,16 @@ void task_CommandHandler(void* param)
 					SerialPrintf("> Disabling motor info display\n");
 					motorinfoEnabled = false; // Signal that motor info display is disabled
 				}
+				else if (cmd_ParseCommand(buffer, "debug.real.time.en"))
+				{
+					SerialPrintf("> Enabling real-time mode\n");
+					RealTimeModeEnabled = true; // Signal that real-time mode is enabled
+				}
+				else if (cmd_ParseCommand(buffer, "debug.real.time.dis"))
+				{
+					SerialPrintf("> Disabling real-time mode\n");
+					RealTimeModeEnabled = false; // Signal that real-time mode is disabled
+				}
 				else if (cmd_ParseCommand(buffer, "help"))
 				{
 					SerialPrintf("> available commands:\n");
@@ -187,6 +198,8 @@ void task_CommandHandler(void* param)
 					SerialPrintf("  debug.enc.skip - skip encoder check for assessment\n");
 					SerialPrintf("  debug.motor.info.en - enable motor info display\n");
 					SerialPrintf("  debug.motor.info.dis - disable motor info display\n");
+					SerialPrintf("  debug.real.time.en - enable real-time mode\n");
+					SerialPrintf("  debug.real.time.dis - disable real-time mode\n");
 				}
 				else
                 {

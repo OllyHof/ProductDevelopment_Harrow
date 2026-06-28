@@ -31,12 +31,12 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#define AngleToEncoder 1.42f            // Conversion factor from requested angle to encoder counts
+#define AngleToEncoder 1.42f            // Conversion factor from requested angle to encoder counts (512 counts per 360° rotation)
 #define Clockwise LOW                // Motor direction for increasing encoder count
 #define CounterClockwise HIGH         // Motor direction for decreasing encoder count
 #define ProportionalGain 1000.0f          // Proportional gain for PWM output
 #define IntegralGain ProportionalGain/10.0f            // Integral gain for angle control
-#define DerivativeGain 3.0f*ProportionalGain       // Derivative gain for angle control
+#define DerivativeGain ProportionalGain/5.0f       // Derivative gain for angle control
 
 static uint8_t CurrentDirection = Clockwise;
 extern SemaphoreHandle_t xControlLoopSemaphore;
@@ -96,17 +96,20 @@ void TaskAngle(void *pvParameters)
             encoderValue = ReadEncoder();
             error = (float)(idealEncoder - encoderValue);
 
-            if ((error < 0 && CurrentDirection == Clockwise) || (error > 0 && CurrentDirection == CounterClockwise))
-            {
-                CurrentDirection = !CurrentDirection;
-                ChangeDirection(PIN_ANGLE_MOTOR_DIR, CurrentDirection);
-            }
 
             float derivative = (error - prevError) / dtSeconds;
             integral += error * dtSeconds;
             float pidOutput = ProportionalGain * error + IntegralGain * integral + DerivativeGain * derivative;
+            uint8_t direction = (pidOutput >= 0) ? Clockwise : CounterClockwise;
+
+            if (direction != CurrentDirection)
+            {
+                ChangeDirection(PIN_ANGLE_MOTOR_DIR, direction);
+                CurrentDirection = direction;
+            }
+
             float pwmMagnitude = fabsf(pidOutput);
-            if (pwmMagnitude > 255.0f)
+            if (pwmMagnitude >= 255.0f)
             {
                 pwmMagnitude = 255.0f;
                 integral -= error * dtSeconds; // simple anti-windup
@@ -131,7 +134,7 @@ void TaskAngle(void *pvParameters)
             }
 
         }
-
+        
         // if (taskBrakes(true, PIN_BRAKE_LOWER))
         // {
         //     // Brake engagement failure should be handled elsewhere.
@@ -140,6 +143,8 @@ void TaskAngle(void *pvParameters)
 
     }
     
+    integral = 0.0f;
+    prevError = 0.0f;
     analogWrite(PIN_ANGLE_MOTOR_PWM, 0);
     SerialPrintf("> TaskAngle complete: stopped motor and deinitialized encoder\n");
     DeinitEncoder();

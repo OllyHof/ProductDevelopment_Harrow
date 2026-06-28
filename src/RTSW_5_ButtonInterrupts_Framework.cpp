@@ -9,9 +9,9 @@
 //				20-11-2025
 //              22-04-2026 .... 08-05-2026 (Harrow V0.1) Initial Attempt at project during P2.3
 //              19-05-2026 .... 20-05-2026 (Harrow V0.2) First fully defined version (non hardware tested)
-//				xx-xx-2026 .... xx-xx-2026 (Harrow V0.3) First Bugfix round after testing
-//
-//
+//				12-06-2026 .... 19-06-2026 (Harrow V0.3) First Bugfix round after testing
+//              24-06-2026 .... 26-06-2026 (Harrow V0.4) Second Bugfix round after testing on full harrow
+//              28-06-2026 .... 29-06-2026 (Harrow V0.5) Final Bugfix round before submission
 ///////////////////////////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -275,20 +275,37 @@ void StartUserTasks(void)
 void TaskControlLoop(void *pvParameters)
 {
     motorinfoEnabled = false; // Initialize motor info display flag to false
+    RealTimeModeEnabled = false; // Initialize real-time mode flag to false
     BaseType_t result = pdFAIL;
     while (true)
     {
         xSemaphoreTake(xHandleStartControlLoop, portMAX_DELAY);
-        SerialPrintf("> TaskControlLoop received start command...\n");
-        SerialPrintf("> TaskControlLoop is running...\n");
-        SerialPrintf("> Machine_Settings: IdealAngle = %d, IdealPressure = %.2f\n", Machine_Settings.IdealAngle, Machine_Settings.IdealPressure);
-        taskSleep(100);
+        if (RealTimeModeEnabled)
+        {
+            
+            SerialPrintf("> TaskControlLoop received start command...\n");
+            SerialPrintf("> TaskControlLoop is running...\n");
+            SerialPrintf("> Real-time mode enabled: pressure and angle control will run simultaneously\n");
+            SerialPrintf("> Machine_Settings: IdealAngle = %d, IdealPressure = %.2f\n", Machine_Settings.IdealAngle, Machine_Settings.IdealPressure);
+            taskSleep(100);
 
-        result &= platformTaskCreate(TaskPressure, NULL, "task_pressure", &handle_PressureTask);
-        xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
-        result &= platformTaskCreate(TaskAngle, NULL, "task_angle", &handle_AngleTask);
-        xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
-        
+            result &= platformTaskCreate(TaskPressure, NULL, "task_pressure", &handle_PressureTask);
+            result &= platformTaskCreate(TaskAngle, NULL, "task_angle", &handle_AngleTask);
+            xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
+            xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
+        }
+        else
+        {
+            SerialPrintf("> TaskControlLoop received start command...\n");
+            SerialPrintf("> TaskControlLoop is running...\n");
+            SerialPrintf("> Machine_Settings: IdealAngle = %d, IdealPressure = %.2f\n", Machine_Settings.IdealAngle, Machine_Settings.IdealPressure);
+            taskSleep(100);
+
+            result &= platformTaskCreate(TaskPressure, NULL, "task_pressure", &handle_PressureTask);
+            xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
+            result &= platformTaskCreate(TaskAngle, NULL, "task_angle", &handle_AngleTask);
+            xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
+        }
     }
 }
 
