@@ -67,6 +67,7 @@
 #include "Tasks_Custom/TaskPressure.h" // implemented
 #include "Tasks_Custom/TaskAngle.h" // implemented (needs review)
 #include "Tasks_Custom/TaskStatusLight.h"
+#include "Tasks_Custom/MotorUtils.h"
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -214,6 +215,7 @@ void setup()
 	SerialPrintf("> build: %s\n", __TIMESTAMP__);
 	SerialPrintf("> running setup\n");
 
+    encoder_init();
     result = platformInit();
 
    	SerialPrintf("> setup done: %s\n", (result == true) ? "OK" : "FAILED");
@@ -319,7 +321,7 @@ void ESTOPHandler(void *pvParameters)
             //    SerialPrintf("> Current Button state = %d", digitalRead(PIN_BUTTON_ESTOP));
             }
 
-            SerialPrintf("> System is now in a safe state. Please reset using Reset.Soft command to resume operation.\n");
+            SerialPrintf("> System is now in a safe state. Please reset using reset command to resume operation.\n");
             taskStatusLight(STATUS_ERROR_SOFT);
             
             xSemaphoreTake(xResetSemaphore, portMAX_DELAY);

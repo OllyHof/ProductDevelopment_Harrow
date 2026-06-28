@@ -51,8 +51,8 @@ void InitEncoder(gpio_num_t EncoderPinA, gpio_num_t EncoderPinB)
     pinMode(EncoderPinA, INPUT_PULLUP);
     pinMode(EncoderPinB, INPUT_PULLUP);
 
-    ResetEncoder(0);
-
+    // Preserve the last accumulated position so a new move continues from the
+    // current encoder value instead of restarting from zero.
     int irq = digitalPinToInterrupt(EncoderPinA);
     if (irq != NOT_AN_INTERRUPT)
     {
@@ -79,7 +79,6 @@ void DeinitEncoder()
 
     s_encoderPinA = (gpio_num_t)-1;
     s_encoderPinB = (gpio_num_t)-1;
-    ResetEncoder(0);
 }
 
 void ResetEncoder(int64_t initialValue)
@@ -87,6 +86,12 @@ void ResetEncoder(int64_t initialValue)
     portENTER_CRITICAL(&s_encoderMux);
     s_encoderCount = initialValue;
     portEXIT_CRITICAL(&s_encoderMux);
+}
+
+void encoder_init(void)
+{
+    ResetEncoder(0);
+    SerialPrintf("> encoder_init: encoder count set to 0\n");
 }
 
 int64_t GetEncoderValue()

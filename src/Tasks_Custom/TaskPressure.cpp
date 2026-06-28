@@ -54,9 +54,9 @@ MotorConfig_t motorConfigs[] =
     */
 };
 
-#define PressureToEncoder 100403.2f            // Conversion factor from requested pressure to encoder counts
-#define Clockwise LOW                   // Motor direction used for Positive pressure adjustment direction
-#define CounterClockwise HIGH           // Motor direction used for Negative pressure adjustment direction
+#define PressureToEncoder 1000.2f            // Conversion factor from requested pressure to encoder counts
+#define Clockwise HIGH                   // Motor direction used for Positive pressure adjustment direction
+#define CounterClockwise LOW           // Motor direction used for Negative pressure adjustment direction
 #define ProportionalGain 5.0f          // Proportional gain for PWM output
 #define IntegralGain ProportionalGain/10.0f            // Integral gain for angle control
 #define DerivativeGain 3.0f*ProportionalGain       // Derivative gain for angle control
@@ -78,6 +78,7 @@ void TaskPressure(void *pvParameters)
         MotorConfig_t *config = &motorConfigs[i];
         float idealEncoder_float = Machine_Settings.IdealPressure * PressureToEncoder;
         int64_t idealEncoder = (int64_t)roundf(idealEncoder_float);
+        ResetEncoder(config->EncoderValue);
         config->EncoderValue = ReadEncoder();
 
         float error = (float)(idealEncoder - config->EncoderValue);
