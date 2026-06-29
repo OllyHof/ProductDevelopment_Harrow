@@ -49,7 +49,7 @@ bool taskBrakes (bool BrakeOn, uint8_t BrakePin)
 	// Set the brake control pin according to the requested state.
 	// NOTE: physical brake polarity depends on wiring; this function
 	// simply writes the requested logical state and reports success.
-	io_SetBit(BrakePin, BrakeOn);
+	digitalWrite(BrakePin, BrakeOn);
 
 	if (digitalRead(BrakePin) != BrakeOn)
 		return true; // Return true to indicate an error occurred (false indicates success)
@@ -75,7 +75,7 @@ void Estop_Brake()
 	{
 		BrakeConfig_t *config = &BrakeConfigs[i];
 
-		if (taskBrakes(false, config->BrakeID))
+		if (taskBrakes(true, config->BrakeID))
 		{
 			SerialPrintf("> ERROR: Failed to disengage %s!\n", config->BrakeName.c_str());
 		}

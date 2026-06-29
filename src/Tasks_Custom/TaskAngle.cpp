@@ -58,7 +58,12 @@ void TaskAngle(void *pvParameters)
     float integral = 0.0f;
     float prevError = error;
     uint32_t lastTimeUs = micros();
-
+    uint32_t InfolastTimeUs = 0;
+    float InfodtSeconds = 0.0f;
+    if (motorinfoEnabled)
+    {
+        InfolastTimeUs = micros();
+    }
     SerialPrintf("> TaskAngle start: targetAngle=%d targetEncoder=%lld currentEncoder=%lld error=%.2f\n",
                  Machine_Settings.IdealAngle, idealEncoder, encoderValue, error);
 
@@ -93,6 +98,16 @@ void TaskAngle(void *pvParameters)
             }
             lastTimeUs = nowUs;
 
+            if (motorinfoEnabled)
+            {
+            uint32_t InfonowUs = micros();
+            float InfodtSeconds = (float)(InfonowUs - InfolastTimeUs) * 1e-6f;
+            if (InfodtSeconds <= 0.0f)
+            {
+                InfodtSeconds = 1e-6f;
+            }
+            }
+
             encoderValue = ReadEncoder();
 
             if (xSemaphoreTake(xDebugSemaphore, 0) == pdTRUE)
@@ -126,12 +141,12 @@ void TaskAngle(void *pvParameters)
             uint8_t pwmValue = (uint8_t)LimitPWM((uint64_t)pwmMagnitude, 255, 0);
             analogWrite(PIN_ANGLE_MOTOR_PWM, pwmValue);
 
-            if (motorinfoEnabled)
+            if ((motorinfoEnabled)&&(InfodtSeconds>0.1f))
             {
                 SerialPrintf("> TaskAngle loop: encoder=%lld error=%.2f pwm=%u dir=%s\n",
                              encoderValue, error, pwmValue,
                              CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
-                   taskSleep(100); // Slow down to not crash terminal with too many messages
+                             InfolastTimeUs = micros();
             }
         }
         

@@ -54,14 +54,15 @@ MotorConfig_t motorConfigs[] =
     */
 };
 
-#define PressureToEncoder 838.4f            // Conversion factor from requested pressure to encoder counts 
+#define PressureToEncoder (838.4f*2.8f)           // Conversion factor from requested pressure to encoder counts 
 // 2.4 input = 0.5 output shaft rotation = 2012 encoder counts
 // => 1 input unit = 838.4 counts
 #define Clockwise HIGH                   // Motor direction used for Positive pressure adjustment direction
-#define CounterClockwise LOW           // Motor direction used for Negative pressure adjustment direction
-#define ProportionalGain 5.0f          // Proportional gain for PWM output
-#define IntegralGain ProportionalGain/10.0f            // Integral gain for angle control
-#define DerivativeGain ProportionalGain/5.0f       // Derivative gain for angle control
+#define CounterClockwise LOW          // Motor direction used for Negative pressure adjustment direction
+#define ProportionalGain 0.0010f          // Proportional gain for PWM output
+#define IntegralGain ProportionalGain/10000.0f            // Integral gain for angle control
+#define DerivativeGain ProportionalGain*50000.0f       // Derivative gain for angle control
+#define SOFT_START_DURATION_MS 1500u    // Ramp the initial PID output up gently on startup
 
 uint8_t CurrentDirection = Clockwise;
 uint8_t* CurrentDirectionPtr = &CurrentDirection; // Shared direction state used by ChangeDirection
@@ -87,6 +88,13 @@ void TaskPressure(void *pvParameters)
         float integral = 0.0f;
         float prevError = error;
         uint32_t lastTimeUs = micros();
+        uint32_t InfolastTimeUs = 0;
+        float InfodtSeconds = 0.0f;
+
+        if (motorinfoEnabled)
+        {
+            InfolastTimeUs = micros();
+        }
 
         SerialPrintf("> TaskPressure channel=%d start targetPressure=%.2f targetEncoder=%lld currentEncoder=%lld error=%.2f\n",
                      i + 1, Machine_Settings.IdealPressure, idealEncoder, config->EncoderValue, error);
@@ -118,6 +126,7 @@ void TaskPressure(void *pvParameters)
             }
 
             // Single control loop - update every iteration
+            uint32_t softStartStartUs = micros();
             while (true)
             {
                 uint32_t nowUs = micros();
@@ -126,17 +135,23 @@ void TaskPressure(void *pvParameters)
                 {
                     dtSeconds = 1e-6f;
                 }
-                lastTimeUs = nowUs;
+
+                if (motorinfoEnabled)
+                {
+                uint32_t InfonowUs = micros();
+                float InfodtSeconds = (float)(InfonowUs - InfolastTimeUs) * 1e-6f;
+                if (InfodtSeconds <= 0.0f)
+                {
+                    InfodtSeconds = 1e-6f;
+                }
+                }
 
                 // Sample encoder feedback
                 config->EncoderValue = ReadEncoder();
                 error = (float)(idealEncoder - config->EncoderValue);
                 float derivative = (error - prevError) / dtSeconds;
                 integral += error * dtSeconds;
-                float pidOutput = ProportionalGain * error
-                + IntegralGain * integral
-                + DerivativeGain * derivative;
-
+                float pidOutput = ProportionalGain * error + IntegralGain * integral + DerivativeGain * derivative;
                 uint8_t direction = (pidOutput >= 0) ? Clockwise : CounterClockwise;
 
                 if (direction != CurrentDirection)
@@ -145,7 +160,7 @@ void TaskPressure(void *pvParameters)
                     CurrentDirection = direction;
                 }
 
-                float pwmMagnitude = fabsf(pidOutput);
+                float pwmMagnitude = fabsf(pidOutput);// * softStartGain;
                 if (pwmMagnitude >= 255.0f)
                 {
                     integral -= error * dtSeconds;
@@ -157,7 +172,7 @@ void TaskPressure(void *pvParameters)
                 uint8_t pwmValue = (uint8_t)LimitPWM((uint64_t)pwmMagnitude, 255, 0);
                 analogWrite(PIN_PRESSURE_MOTOR_PWM, pwmValue);
 
-                if (motorinfoEnabled)
+                if ((motorinfoEnabled)&&(InfodtSeconds>0.1f))
                 {
                 SerialPrintf("> TaskPressure channel=%d loop encoder=%lld error=%.2f pwm=%u dir=%s\n",
                              i + 1,
@@ -165,8 +180,7 @@ void TaskPressure(void *pvParameters)
                              error,
                              pwmValue,
                              CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
-
-                taskSleep(100); // Slow down to not crash terminal with too many messages
+                             InfolastTimeUs = micros();
                 }
 
                 if (fabsf(error) <= PRESSURE_ERROR_THRESHOLD)

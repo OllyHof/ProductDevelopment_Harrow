@@ -119,6 +119,8 @@ IOPinConfig_t ioPinConfigs[] = {
 };
 
 uint8_t nEstopCount = 0;
+volatile bool estopActive = false;
+static const uint32_t ESTOP_DEBOUNCE_MS = 250u;
 void StartUserTasks(void);
 void TaskControlLoop(void *pvParameters);
 void TestTask(void *pvParameters);
@@ -162,9 +164,9 @@ bool platformInit(void)
     //io_Init();
     led_Init();
     button_Init();
-    spi_Init();
-    qc_Init();
-    dac_Init();
+    //spi_Init();
+    //qc_Init();
+    //dac_Init();
     IO_INIT();
     
     i2cOK  = i2c_Init();
@@ -266,11 +268,21 @@ void StartUserTasks(void)
 //    result &= platformTaskCreate(MachineStatus, NULL, "task_status", &handle_StatusLightTask);
 //    result &= platformTaskCreate(TestTask, NULL, "TestTask", &handle_TestTask);
     result &= platformTaskCreate(ESTOPHandler, NULL, "task_estop_handler", &handle_ESTOPHandlerTask);
-    pinMode(PIN_BUTTON_ESTOP, INPUT_PULLUP); // Initialize ESTOP button pin with internal pull-up
+    taskSleep(100); // Give the pin time to settle after startup
+
+    if (digitalRead(PIN_BUTTON_ESTOP) == LOW)
+    {
+        SerialPrintf("> ESTOP input is already active at startup; waiting for release before arming interrupt\n");
+        while (digitalRead(PIN_BUTTON_ESTOP) == LOW)
+        {
+            taskSleep(100);
+        }
+    }
+
     interrupt_AttachHandler(buttonISR, PIN_BUTTON_ESTOP, FALLING); // Attach button interrupt to ESTOP pin on falling edge
-//    interrupt_Enable(PIN_BUTTON_ESTOP); // Enable interrupt for ESTOP pin
+    SerialPrintf("> ESTOP interrupt armed\n");
     
-    vTaskPrioritySet(handle_ESTOPHandlerTask, 3); // Set ESTOPHandlerTask to higher priority for testing purposes
+    vTaskPrioritySet(handle_ESTOPHandlerTask, 10); // Set ESTOPHandlerTask to higher priority for testing purposes
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -316,7 +328,6 @@ void TaskControlLoop(void *pvParameters)
 
 void IRAM_ATTR buttonISR()
 {
-    nEstopCount++;
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     xSemaphoreGiveFromISR(xEstopSemaphore, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
@@ -327,31 +338,35 @@ void ESTOPHandler(void *pvParameters)
     while (true)
     {
         xSemaphoreTake(xEstopSemaphore, portMAX_DELAY);
-            SerialPrintf("> ESTOP button pressed! Initiating emergency stop...\n");
-            SerialPrintf("> Total ESTOP presses: %d\n", nEstopCount);
-            taskStatusLight(STATUS_ERROR_HARD);
-            Estop_Brake();
-            if (handle_ControlLoopTask != NULL){vTaskDelete(handle_ControlLoopTask);}
-            if (handle_PressureTask != NULL){vTaskDelete(handle_PressureTask);}
-            if (handle_AngleTask != NULL){vTaskDelete(handle_AngleTask);}
 
-            Estop_Pressure();
-            Estop_Angle();
-            SerialPrintf("> Emergency stop actions executed.\n");
+        // if (estopActive)
+        // {
+        //     continue;
+        // }
 
-            while (digitalRead(PIN_BUTTON_ESTOP) == LOW) // Wait until button is released
-            {
-                taskSleep(100); // Sleep to debounce and prevent busy-waiting
-            //    SerialPrintf("> Current Button state = %d", digitalRead(PIN_BUTTON_ESTOP));
-            }
+        // estopActive = true;
+        nEstopCount++;
+        SerialPrintf("> ESTOP button pressed! Initiating emergency stop...\n");
+        SerialPrintf("> Total ESTOP presses: %d\n", nEstopCount);
+        taskStatusLight(STATUS_ERROR_HARD);
 
-            SerialPrintf("> System is now in a safe state. Please reset using reset command to resume operation.\n");
-            taskStatusLight(STATUS_ERROR_SOFT);
-            
-            xSemaphoreTake(xResetSemaphore, portMAX_DELAY);
-            
-            SerialPrintf("> Reset signal received. Restarting system...\n");
-            platformTaskCreate(TaskControlLoop, NULL, "task_control_loop", &handle_ControlLoopTask); // Restart control loop task
+        if (handle_ControlLoopTask != NULL){vTaskSuspend(handle_ControlLoopTask);} 
+        if (handle_PressureTask != NULL){vTaskSuspend(handle_PressureTask);} 
+        if (handle_AngleTask != NULL){vTaskSuspend(handle_AngleTask);} 
+
+        Estop_Brake();
+        Estop_Pressure();
+        Estop_Angle();
+        SerialPrintf("> Emergency stop actions executed.\n");
+
+        while (digitalRead(PIN_BUTTON_ESTOP) == LOW)
+        {
+            taskSleep(20);
+        }
+
+        // estopActive = false;
+        SerialPrintf("> System is now in a safe state. Please reset using reset command to resume operation.\n");
+        taskStatusLight(STATUS_ERROR_SOFT);
     }
 }
 void TestTask(void *pvParameters)
@@ -383,7 +398,6 @@ void IO_INIT()
         }
     */
     //}
-
     pinMode(PIN_PRESSURE_MOTOR_PWM, OUTPUT); // Set PWM pin to analog mode for motor control
     analogWrite(PIN_PRESSURE_MOTOR_PWM, 0); // Initialize PWM output to 0 (motor off)
 
@@ -395,6 +409,7 @@ void IO_INIT()
     pinMode(PIN_PRESSURE_SENSOR_B, INPUT_PULLUP);
     pinMode(PIN_ANGLE_SENSOR_A, INPUT_PULLUP);
     pinMode(PIN_ANGLE_SENSOR_B, INPUT_PULLUP);
+    pinMode(PIN_BUTTON_ESTOP, INPUT_PULLDOWN); // Initialize ESTOP button pin with internal pull-up
 }
 
 ///////////////////////////////////////////////////////////////////////////////

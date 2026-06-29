@@ -77,8 +77,12 @@ void task_CommandHandler(void* param)
 				else if (cmd_ParseCommand(buffer, "shutdown"))
 				{
 					SerialPrintf("> Setting Machine settings to resting values...\n");
-					Machine_Settings = {0,0};
+					Machine_Settings.IdealAngle = 0;
+					Machine_Settings.IdealPressure = 0.0f;
 					SerialPrintf("> Applying Machine Settings...");
+					SerialPrintf("> Machine settings updated: angle=%d pressure=%.2f\n",
+								Machine_Settings.IdealAngle,
+								Machine_Settings.IdealPressure);
 					xSemaphoreGive(xHandleStartControlLoop); // Signal control loop to start
 				}
 				else if (cmd_ParseCommand(buffer, "setup"))
@@ -103,6 +107,7 @@ void task_CommandHandler(void* param)
 								break;
 							}
 
+
 							Machine_Settings.IdealPressure =
 								cmd_ParseFloat(
 									String(buffer),
@@ -124,7 +129,6 @@ void task_CommandHandler(void* param)
 							{
 								break;
 							}
-
 							Machine_Settings.IdealAngle =
 								cmd_ParseInteger(
 									String(buffer),
@@ -132,7 +136,6 @@ void task_CommandHandler(void* param)
 									Machine_Settings.IdealAngle,
 									10,
 								35)+INITIALANGLEOFFSET;
-
 							SerialPrintf("> Angle updated: %d\n",
 										Machine_Settings.IdealAngle);
 						}
