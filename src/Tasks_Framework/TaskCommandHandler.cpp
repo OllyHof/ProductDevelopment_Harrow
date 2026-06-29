@@ -131,7 +131,7 @@ void task_CommandHandler(void* param)
 									"angle",
 									Machine_Settings.IdealAngle,
 									10,
-									35);
+								35)+INITIALANGLEOFFSET;
 
 							SerialPrintf("> Angle updated: %d\n",
 										Machine_Settings.IdealAngle);
