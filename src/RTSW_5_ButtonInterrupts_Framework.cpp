@@ -90,6 +90,10 @@ SemaphoreHandle_t xControlLoopSemaphore = NULL;
 SemaphoreHandle_t xHandleStartControlLoop = NULL;
 SemaphoreHandle_t xEstopSemaphore = NULL;
 SemaphoreHandle_t xResetSemaphore = NULL;
+SemaphoreHandle_t xDebugSemaphore = NULL;
+
+bool motorinfoEnabled = false;
+bool RealTimeModeEnabled = false;
 
 CommunicationData_t Machine_Settings = {
     .IdealAngle = 0,
@@ -251,6 +255,8 @@ void StartUserTasks(void)
     xEstopSemaphore = xSemaphoreCreateCounting(1, 0);
     xResetSemaphore = xSemaphoreCreateCounting(1, 0);
     xDebugSemaphore = xSemaphoreCreateCounting(1, 0);
+    motorinfoEnabled = false; // Initialize motor info display flag to false
+    RealTimeModeEnabled = false; // Initialize real-time mode flag to false
 
     SerialPrintf("> starting user tasks for Harrow\n");
 // CAN Functions, Not implemented yet, use cmd interface for now
@@ -274,8 +280,6 @@ void StartUserTasks(void)
 // Funtions
 void TaskControlLoop(void *pvParameters)
 {
-    motorinfoEnabled = false; // Initialize motor info display flag to false
-    RealTimeModeEnabled = false; // Initialize real-time mode flag to false
     BaseType_t result = pdFAIL;
     while (true)
     {
@@ -306,6 +310,7 @@ void TaskControlLoop(void *pvParameters)
             result &= platformTaskCreate(TaskAngle, NULL, "task_angle", &handle_AngleTask);
             xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
         }
+        SerialPrintf("> Machine reached ideal settings.\n");
     }
 }
 

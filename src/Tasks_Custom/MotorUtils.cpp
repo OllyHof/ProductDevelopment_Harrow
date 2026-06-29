@@ -24,12 +24,12 @@ uint8_t LimitPWM(uint64_t voltage, uint8_t maxVoltage, uint8_t minVoltage)
 {
     if (voltage > maxVoltage)
     {
-        SerialPrintf("> LimitPWM: clamped %llu to %u\n", voltage, maxVoltage);
+        //SerialPrintf("> LimitPWM: clamped %llu to %u\n", voltage, maxVoltage);
         voltage = maxVoltage;
     }
     else if (voltage < minVoltage)
     {
-        SerialPrintf("> LimitPWM: raised %llu to %u\n", voltage, minVoltage);
+        //SerialPrintf("> LimitPWM: raised %llu to %u\n", voltage, minVoltage);
         voltage = minVoltage;
     }
 

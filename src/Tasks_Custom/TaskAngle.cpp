@@ -94,6 +94,13 @@ void TaskAngle(void *pvParameters)
             lastTimeUs = nowUs;
 
             encoderValue = ReadEncoder();
+
+            if (xSemaphoreTake(xDebugSemaphore, 0) == pdTRUE)
+            {
+                encoderValue = idealEncoder; // Assume ideal position for assessment
+                SerialPrintf("> TaskAngle assessment mode: encoder assumed ideal\n");
+            }
+
             error = (float)(idealEncoder - encoderValue);
 
 
@@ -126,13 +133,6 @@ void TaskAngle(void *pvParameters)
                              CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
                    taskSleep(100); // Slow down to not crash terminal with too many messages
             }
-
-            if (xSemaphoreTake(xDebugSemaphore, 0) == pdTRUE)
-            {
-                encoderValue = idealEncoder; // Assume ideal position for assessment
-                SerialPrintf("> TaskAngle assessment mode: encoder assumed ideal\n");
-            }
-
         }
         
         // if (taskBrakes(true, PIN_BRAKE_LOWER))
