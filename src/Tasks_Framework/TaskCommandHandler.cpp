@@ -63,10 +63,20 @@ void task_CommandHandler(void* param)
 				{
 					info_Version();
 				}
+				else if (cmd_ParseCommand(buffer, "restart"))
+				{
+					SerialPrintf("> restarting system...\n");
+					esp_restart();
+				}
 				else if (cmd_ParseCommand(buffer, "reset"))
 				{
-					SerialPrintf("> resetting system...\n");
-					esp_restart();
+					if (estopActive && estopDone)
+					{
+					SerialPrintf("> resetting ESTOP...\n");
+					xSemaphoreGive(xResetSemaphore); // Signal that ESTOP reset is requested
+					}
+					else if (estopActive) {SerialPrintf("> Please release Emergency stop button before resetting system\n");} 
+					else {SerialPrintf("> There is currently no Emergency stop active");}
 				}
 				else if (cmd_ParseCommand(buffer, "start"))
 				{
@@ -190,6 +200,8 @@ void task_CommandHandler(void* param)
 					SerialPrintf("  ver   	 - show software version info\n");
 					SerialPrintf("  help  	 - show this help message\n");
 					SerialPrintf("  reset  	 - reset the system\n");
+					SerialPrintf("  restart  - restart the system\n");
+					SerialPrintf("  debug 	 - show debug commands\n");
 					SerialPrintf("  setup 	 - set pressure and angle\n");
 					SerialPrintf("  start 	 - start the control loop\n");
 					SerialPrintf("  shutdown - make machine ready for storage \n");

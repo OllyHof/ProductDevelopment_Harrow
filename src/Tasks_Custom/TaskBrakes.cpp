@@ -22,21 +22,16 @@
 #include "TaskBrakes.h"
 #include "Hardware_Config.h"
 #include "SerialPrintf.h"
-
-typedef struct
-{
-    gpio_num_t BrakeID;     // Motor select GPIO for the pressure channel
-	String BrakeName;		// Name of brake for console log
-} BrakeConfig_t;
+#include "Function_Config.h"
 
 BrakeConfig_t BrakeConfigs[] = 
 {
-    {PIN_BRAKE_UPPER_1, "Brake Upper 1"}, // Pressure channel 1
+    {PIN_BRAKE_UPPER_1, "Brake Upper 1", BRAKE_ENGAGED}, // Pressure channel 1
 	/* Section commented out since it won't be used in the current machine configuration
-	{PIN_BRAKE_UPPER_2, "Brake Upper 2"}, // Pressure channel 2
-    {PIN_BRAKE_UPPER_3, "Brake Upper 3"}, // Pressure channel 3
-    {PIN_BRAKE_UPPER_4, "Brake Upper 4"}, // Pressure channel 4
-	{PIN_BRAKE_LOWER, "Brake Lower"} // Angle channel
+	{PIN_BRAKE_UPPER_2, "Brake Upper 2", BRAKE_ENGAGED}, // Pressure channel 2
+    {PIN_BRAKE_UPPER_3, "Brake Upper 3", BRAKE_ENGAGED}, // Pressure channel 3
+    {PIN_BRAKE_UPPER_4, "Brake Upper 4", BRAKE_ENGAGED}, // Pressure channel 4
+	{PIN_BRAKE_LOWER, "Brake Lower", BRAKE_ENGAGED} // Angle channel
 	*/
 };
 
@@ -44,16 +39,21 @@ BrakeConfig_t BrakeConfigs[] =
 ///////////////////////////////////////////////////////////////////////////////
 // bool taskBrakes (bool BrakeOn, uint8_t BrakePin)
 
-bool taskBrakes (bool BrakeOn, uint8_t BrakePin)
+bool taskBrakes (BrakeState_t state, gpio_num_t BrakePin)
 {
-	// Set the brake control pin according to the requested state.
-	// NOTE: physical brake polarity depends on wiring; this function
-	// simply writes the requested logical state and reports success.
-	digitalWrite(BrakePin, BrakeOn);
+	digitalWrite(BrakePin, state); // Set output pin to desired value  
 
-	if (digitalRead(BrakePin) != BrakeOn)
-		return true; // Return true to indicate an error occurred (false indicates success)
-	
+	if (digitalRead(BrakePin) != state) {return true;} // Return true to indicate an error occurred (false indicates success)
+
+	if (!estopActive) // Disable config change for ESTOP
+	{
+	for(int i = 0; i < sizeof(BrakeConfigs) / sizeof(BrakeConfig_t); i++) // Check if changed brake is stored in config
+	{
+		BrakeConfig_t *config = &BrakeConfigs[i]; // Pointer to correct brake
+		if (BrakePin == config->BrakeID){config->BrakeState=state; break;} // Update config 	
+	}
+	}
+
 	return false; // Return false to indicate no error occurred (true would indicate a failure to set the brake state)
 }
 
@@ -69,19 +69,31 @@ bool taskBrakes (bool BrakeOn, uint8_t BrakePin)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-void Estop_Brake()
+bool Estop_Brake()
 {
-	for(int i = 0; i < sizeof(BrakeConfigs) / sizeof(BrakeConfig_t); i++)
+	bool result = true;
+	for(int i = 0; i < sizeof(BrakeConfigs) / sizeof(BrakeConfig_t); i++) // For all brakes
 	{
-		BrakeConfig_t *config = &BrakeConfigs[i];
+		BrakeConfig_t *config = &BrakeConfigs[i]; // Pointer to correct brake
 
-		if (taskBrakes(true, config->BrakeID))
-		{
-			SerialPrintf("> ERROR: Failed to disengage %s!\n", config->BrakeName.c_str());
-		}
+		if (taskBrakes(BRAKE_ENGAGED, config->BrakeID)) 
+		{SerialPrintf("> ERROR: Failed to engage %s!\n", config->BrakeName.c_str()); result = false;}
 		else 
-		{
-			SerialPrintf("> %s  successfully.\n", config->BrakeName.c_str());
-		}
+		{SerialPrintf("> %s engaged successfully.\n", config->BrakeName.c_str());}
 	}
+	return result;
+}
+
+bool Reset_Brake()
+{
+	bool result = true;
+	for(int i = 0; i < sizeof(BrakeConfigs) / sizeof(BrakeConfig_t); i++) // For all brakes
+	{
+		BrakeConfig_t *config = &BrakeConfigs[i]; // Pointer to correct brake
+		if (taskBrakes(config->BrakeState,config->BrakeID)) // Set brake to original state
+		{SerialPrintf("> ERROR %s Failed to return to original state!\n", config->BrakeName.c_str()); result = false;}
+		else
+		{SerialPrintf("> %s returned to original state: %s\n", config->BrakeName.c_str(), ((config->BrakeState == BRAKE_ENGAGED) ? "Engaged" : "Released"));}
+	}
+	return result;
 }

@@ -37,20 +37,13 @@
 
 extern SemaphoreHandle_t xControlLoopSemaphore;
 
-typedef struct
+extern MotorConfig_t motorConfigs[] = 
 {
-    gpio_num_t MotorID;     // Motor select GPIO for the pressure channel
-    gpio_num_t BrakeID;     // Brake control GPIO for the pressure channel
-    int64_t EncoderValue;   // Latest encoder count used for closed-loop control
-} MotorConfig_t;
-
-MotorConfig_t motorConfigs[] = 
-{
-    {PIN_PRESSURE_MOTOR_SEL_1, PIN_BRAKE_UPPER_1, 0}, // Pressure channel 1
+    {PIN_PRESSURE_MOTOR_SEL_1, PIN_BRAKE_UPPER_1, 0,}, // Pressure channel 1
     /* Section commented out since it won't be used in the current machine configuration
-    {PIN_PRESSURE_MOTOR_SEL_2, PIN_BRAKE_UPPER_2, 0}, // Pressure channel 2
-    {PIN_PRESSURE_MOTOR_SEL_3, PIN_BRAKE_UPPER_3, 0}, // Pressure channel 3
-    {PIN_PRESSURE_MOTOR_SEL_4, PIN_BRAKE_UPPER_4, 0}, // Pressure channel 4
+    {PIN_PRESSURE_MOTOR_SEL_2, PIN_BRAKE_UPPER_2, 0,}, // Pressure channel 2
+    {PIN_PRESSURE_MOTOR_SEL_3, PIN_BRAKE_UPPER_3, 0,}, // Pressure channel 3
+    {PIN_PRESSURE_MOTOR_SEL_4, PIN_BRAKE_UPPER_4, 0,}, // Pressure channel 4
     */
 };
 
@@ -62,7 +55,6 @@ MotorConfig_t motorConfigs[] =
 #define ProportionalGain 0.0010f          // Proportional gain for PWM output
 #define IntegralGain ProportionalGain/10000.0f            // Integral gain for angle control
 #define DerivativeGain ProportionalGain*50000.0f       // Derivative gain for angle control
-#define SOFT_START_DURATION_MS 1500u    // Ramp the initial PID output up gently on startup
 
 uint8_t CurrentDirection = Clockwise;
 uint8_t* CurrentDirectionPtr = &CurrentDirection; // Shared direction state used by ChangeDirection
@@ -96,6 +88,7 @@ void TaskPressure(void *pvParameters)
 
         if (fabsf(error) > PRESSURE_ERROR_THRESHOLD)
         {
+            
             // Enable the selected pressure motor output
             digitalWrite(config->MotorID, LOW);
 
@@ -115,11 +108,10 @@ void TaskPressure(void *pvParameters)
                          i + 1,
                          CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
 
-            if (taskBrakes(false, config->BrakeID))
+            if (taskBrakes(BRAKE_RELEASED, config->BrakeID))
             {
                 // Brake release failure should be handled by the calling task or error manager
             }
-
             // Single control loop - update every iteration
             uint32_t softStartStartUs = micros();
             while (true)
@@ -183,7 +175,7 @@ void TaskPressure(void *pvParameters)
                     uint32_t InfonowUs = micros();
                     InfodtMS = (float)(InfonowUs - InfolastTimeUs) * 1e-3f;
 
-                    if (InfodtMS >= MAX_MESSAGE_RATE)
+                    if (InfodtMS >= MAX_MESSAGE_RATE_MS)
                     {
                         SerialPrintf("> TaskPressure channel=%d loop encoder=%lld error=%.2f pwm=%u dir=%s\n",
                                     i + 1,
@@ -199,11 +191,10 @@ void TaskPressure(void *pvParameters)
             }
 
             // Engage the brake after the setpoint has been reached
-            if (taskBrakes(true, config->BrakeID))
+            if (taskBrakes(BRAKE_ENGAGED, config->BrakeID))
             {
                 // Brake engagement failure should be handled elsewhere
             }
-
             // Stop the motor once pressure control is complete
             analogWrite(PIN_PRESSURE_MOTOR_PWM, 0);
             SerialPrintf("> TaskPressure channel=%d complete: motor stopped and brake engaged\n", i + 1);
@@ -221,7 +212,7 @@ void Estop_Pressure()
 {
     for(int i = 0; i < sizeof(motorConfigs) / sizeof(MotorConfig_t); i++)
     {
-        MotorConfig_t *config = &motorConfigs[i];
         analogWrite(PIN_PRESSURE_MOTOR_PWM, 0); // Stop the motor immediately
     }
 }
+

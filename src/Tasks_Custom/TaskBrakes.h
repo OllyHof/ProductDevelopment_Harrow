@@ -11,6 +11,9 @@
 #ifndef TASKBRAKES_H_
 #define TASKBRAKES_H_
 
-bool taskBrakes (bool BrakeOn, uint8_t BrakePin);
-void Estop_Brake ();
+#include "Function_Config.h"
+
+bool taskBrakes (BrakeState_t state, gpio_num_t BrakePin);
+bool Estop_Brake ();
+bool Reset_Brake (); 
 #endif	// TASKBRAKES_H_

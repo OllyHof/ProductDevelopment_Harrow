@@ -77,14 +77,14 @@ xTaskHandle handle_HeartbeatTask	= NULL;
 xTaskHandle handle_CLITask		= NULL;
 xTaskHandle handle_CmdTask		= NULL;
 
-xTaskHandle handle_CommunicateTask = NULL;
-xTaskHandle handle_CommunicateSendTask = NULL;
+volatile bool estopActive = false;
+volatile bool estopDone = false;
+
 xTaskHandle handle_ControlLoopTask = NULL;
 xTaskHandle handle_PressureTask = NULL;
 xTaskHandle handle_AngleTask = NULL;
-xTaskHandle handle_StatusLightTask = NULL;
-xTaskHandle handle_TestTask = NULL;
 xTaskHandle handle_ESTOPHandlerTask = NULL;
+xTaskHandle handle_ResetHandlerTask = NULL;
 
 SemaphoreHandle_t xControlLoopSemaphore = NULL;
 SemaphoreHandle_t xHandleStartControlLoop = NULL;
@@ -118,14 +118,13 @@ IOPinConfig_t ioPinConfigs[] = {
     {PIN_ANGLE_MOTOR_DIR},
 };
 
-uint8_t nEstopCount = 0;
-volatile bool estopActive = false;
 static const uint32_t ESTOP_DEBOUNCE_MS = 250u;
 void StartUserTasks(void);
 void TaskControlLoop(void *pvParameters);
 void TestTask(void *pvParameters);
 void IRAM_ATTR buttonISR();
 void ESTOPHandler(void *pvParameters);
+void ResetHandler(void *pvParameters);
 void IO_INIT();
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -261,13 +260,9 @@ void StartUserTasks(void)
     RealTimeModeEnabled = false; // Initialize real-time mode flag to false
 
     SerialPrintf("> starting user tasks for Harrow\n");
-// CAN Functions, Not implemented yet, use cmd interface for now
-//    result &= platformTaskCreate(TaskCommunicate_Receive, NULL, "task_communicate_rx", &handle_CommunicateTask);
-//    result &= platformTaskCreate(TaskCommunicate_Send, NULL, "task_communicate_tx", &handle_CommunicateSendTask);
     result &= platformTaskCreate(TaskControlLoop, NULL, "task_control_loop", &handle_ControlLoopTask);
-//    result &= platformTaskCreate(MachineStatus, NULL, "task_status", &handle_StatusLightTask);
-//    result &= platformTaskCreate(TestTask, NULL, "TestTask", &handle_TestTask);
     result &= platformTaskCreate(ESTOPHandler, NULL, "task_estop_handler", &handle_ESTOPHandlerTask);
+    result &= platformTaskCreate(ResetHandler, NULL, "task_reset_handler", &handle_ResetHandlerTask);
     taskSleep(100); // Give the pin time to settle after startup
 
     if (digitalRead(PIN_BUTTON_ESTOP) == LOW)
@@ -298,28 +293,32 @@ void TaskControlLoop(void *pvParameters)
         xSemaphoreTake(xHandleStartControlLoop, portMAX_DELAY);
         if (RealTimeModeEnabled)
         {
-            
+            // Currently crashes when both tasks are started simultaneously, so we will start them sequentially for now, (Possibly due to encoder handling, needs further investigation)
             SerialPrintf("> TaskControlLoop received start command...\n");
             SerialPrintf("> TaskControlLoop is running...\n");
             SerialPrintf("> Real-time mode enabled: pressure and angle control will run simultaneously\n");
             SerialPrintf("> Machine_Settings: IdealAngle = %d, IdealPressure = %.2f\n", Machine_Settings.IdealAngle, Machine_Settings.IdealPressure);
-            taskSleep(100);
+            taskSleep(MAX_MESSAGE_RATE_MS);
 
-            result &= platformTaskCreate(TaskPressure, NULL, "task_pressure", &handle_PressureTask);
-            result &= platformTaskCreate(TaskAngle, NULL, "task_angle", &handle_AngleTask);
-            xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
-            xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
+            if (handle_PressureTask == NULL){result &= platformTaskCreate(TaskPressure, NULL, "task_pressure", &handle_PressureTask);} // Start pressure task if not already running
+            else{SerialPrintf("> Pressure task already running, skipping creation.\n");}
+            if (handle_AngleTask == NULL){result &= platformTaskCreate(TaskAngle, NULL, "task_angle", &handle_AngleTask);} // Start angle task if not already running
+            else{SerialPrintf("> Angle task already running, skipping creation.\n");}
+            xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY); // Wait for both tasks to complete
+            xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY); // Wait for both tasks to complete
         }
         else
         {
             SerialPrintf("> TaskControlLoop received start command...\n");
             SerialPrintf("> TaskControlLoop is running...\n");
             SerialPrintf("> Machine_Settings: IdealAngle = %d, IdealPressure = %.2f\n", Machine_Settings.IdealAngle, Machine_Settings.IdealPressure);
-            taskSleep(100);
+            taskSleep(MAX_MESSAGE_RATE_MS); // Allow time for settings to stabilize before starting tasks
 
-            result &= platformTaskCreate(TaskPressure, NULL, "task_pressure", &handle_PressureTask);
+            if (handle_PressureTask == NULL){result &= platformTaskCreate(TaskPressure, NULL, "task_pressure", &handle_PressureTask);}
+            else{SerialPrintf("> Pressure task already running, skipping creation.\n");}
             xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
-            result &= platformTaskCreate(TaskAngle, NULL, "task_angle", &handle_AngleTask);
+            if (handle_AngleTask == NULL){result &= platformTaskCreate(TaskAngle, NULL, "task_angle", &handle_AngleTask);}
+            else{SerialPrintf("> Angle task already running, skipping creation.\n");}
             xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
         }
         SerialPrintf("> Machine reached ideal settings.\n");
@@ -335,40 +334,67 @@ void IRAM_ATTR buttonISR()
 
 void ESTOPHandler(void *pvParameters)
 {
+    uint8_t nEstopCount = 0;
+    bool result = true;
     while (true)
     {
         xSemaphoreTake(xEstopSemaphore, portMAX_DELAY);
+        if (estopActive) continue; // Ignore if already handling an ESTOP
+        
+        estopActive = true;
+        estopDone   = false;
 
-        // if (estopActive)
-        // {
-        //     continue;
-        // }
-
-        // estopActive = true;
         nEstopCount++;
         SerialPrintf("> ESTOP button pressed! Initiating emergency stop...\n");
         SerialPrintf("> Total ESTOP presses: %d\n", nEstopCount);
         taskStatusLight(STATUS_ERROR_HARD);
 
-        if (handle_ControlLoopTask != NULL){vTaskSuspend(handle_ControlLoopTask);} 
-        if (handle_PressureTask != NULL){vTaskSuspend(handle_PressureTask);} 
-        if (handle_AngleTask != NULL){vTaskSuspend(handle_AngleTask);} 
-
-        Estop_Brake();
+        result = Estop_Brake();
         Estop_Pressure();
         Estop_Angle();
-        SerialPrintf("> Emergency stop actions executed.\n");
+
+        if (handle_ControlLoopTask != NULL){vTaskSuspend(handle_ControlLoopTask);}  // Suspend the control loop task to prevent further motor commands
+        if (handle_PressureTask != NULL){vTaskSuspend(handle_PressureTask);} // Suspend the pressure control task to stop motor operation
+        if (handle_AngleTask != NULL){vTaskSuspend(handle_AngleTask);} // Suspend the angle control task to stop motor operation
+
+        if (result) {SerialPrintf("> Emergency stop actions executed.\n");}
+        else {SerialPrintf("> Estop actions failed, Please inform a supervisor"); while(1){};} // Suspend all further actions if Estop actions failed
 
         while (digitalRead(PIN_BUTTON_ESTOP) == LOW)
         {
             taskSleep(20);
         }
-
-        // estopActive = false;
+        estopDone   = true;
         SerialPrintf("> System is now in a safe state. Please reset using reset command to resume operation.\n");
         taskStatusLight(STATUS_ERROR_SOFT);
     }
 }
+
+void ResetHandler(void *pvParameters)
+{
+    while (true)
+    {
+        xSemaphoreTake(xResetSemaphore, portMAX_DELAY);
+        SerialPrintf("> Resetting ESTOP...\n");
+        if ((handle_ControlLoopTask != NULL) && (eTaskGetState(handle_ControlLoopTask) == eSuspended)) // Check if the control loop task exists and is suspended
+        {vTaskResume(handle_ControlLoopTask);}  // Resume the control loop task
+
+        if (Reset_Brake()) // Suspend all further actions if Brake failed
+        {
+            if ((handle_PressureTask != NULL) && (eTaskGetState(handle_PressureTask) == eSuspended)) // Check if the pressure control task exists and is suspended
+            {vTaskResume(handle_PressureTask);} // Resume the pressure control task
+
+            if ((handle_AngleTask != NULL)&&(eTaskGetState(handle_AngleTask) == eSuspended)) // Check if the angle control task exists and is suspended
+            {vTaskResume(handle_AngleTask);} // Resume the angle control task
+
+            estopActive = false; // Reset the ESTOP active flag to allow future ESTOP handling
+            
+            SerialPrintf("> ESTOP reset complete. System is now operational.\n");
+        }
+        else {SerialPrintf("> A Brake Failed to return to correct state, Please Restart the system using the restart command"); while(1){}} 
+    }
+}
+
 void TestTask(void *pvParameters)
 {
     while (true)
@@ -376,7 +402,7 @@ void TestTask(void *pvParameters)
         xSemaphoreTake(xHandleStartControlLoop, portMAX_DELAY);
         SerialPrintf("> TestTask is running...\n");
         SerialPrintf("> Machine_Settings: IdealAngle = %d, IdealPressure = %.2f\n", Machine_Settings.IdealAngle, Machine_Settings.IdealPressure);
-        taskSleep(100);
+        taskSleep(MAX_MESSAGE_RATE_MS); 
     }
 }
 

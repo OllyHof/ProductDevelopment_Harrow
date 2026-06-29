@@ -44,14 +44,38 @@ typedef struct
     uint32_t IdealAngle; // 
     float IdealPressure;
 } CommunicationData_t;
-#define MAX_MESSAGE_RATE 0.1f // Maximum message rate in seconds (10 messages per second)
+#define MAX_MESSAGE_RATE_MS 100 // Maximum message rate in milliseconds (10 messages per second)
 
 
 extern CommunicationData_t Machine_Settings;
 extern SemaphoreHandle_t xHandleStartControlLoop;
 extern SemaphoreHandle_t xResetSemaphore; // Semaphore to signal ESTOP reset
 extern SemaphoreHandle_t xDebugSemaphore; // Semaphore to signal assessment task
+extern volatile bool estopActive; // Flag to indicate if ESTOP is active
+extern volatile bool estopDone; // Flag to incidacate if ESTOP actions have completed
 extern bool motorinfoEnabled; // Flag to indicate if motor info display is enabled
 extern bool RealTimeModeEnabled; // Flag to indicate if real-time mode is enabled
+
+typedef enum
+{
+    BRAKE_RELEASED = 0,
+    BRAKE_ENGAGED  = 1
+} BrakeState_t;
+
+typedef struct
+{
+    gpio_num_t MotorID;     // Motor select GPIO for the pressure channel
+    gpio_num_t BrakeID;     // Brake control GPIO for the pressure channel
+    int64_t EncoderValue;   // Latest encoder count used for closed-loop control
+} MotorConfig_t;
+
+typedef struct
+{
+    gpio_num_t BrakeID;     // Motor select GPIO for the pressure channel
+	String BrakeName;		// Name of brake for console log
+    BrakeState_t BrakeState;        // Brake State for Estop logic
+} BrakeConfig_t;
+
+
 
 #endif // FUNCTION_CONFIG_H

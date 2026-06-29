@@ -79,7 +79,7 @@ void TaskAngle(void *pvParameters)
         SerialPrintf("> TaskAngle direction=%s\n",
                      CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
 
-        // if (taskBrakes(false, PIN_BRAKE_LOWER))
+        // if (taskBrakes(BRAKE_RELEASED, PIN_BRAKE_LOWER))
         // {
         //     // Brake release failure should be handled by the calling task or error manager.
         // }
@@ -136,7 +136,7 @@ void TaskAngle(void *pvParameters)
                     uint32_t InfonowUs = micros();
                     InfodtMS = (float)(InfonowUs - InfolastTimeUs) * 1e-3f;
 
-                    if (InfodtMS >= MAX_MESSAGE_RATE)
+                    if (InfodtMS >= MAX_MESSAGE_RATE_MS)
                     {
                         SerialPrintf("> TaskAngleloop encoder=%lld error=%.2f pwm=%u dir=%s\n",
                                     encoderValue,
@@ -150,7 +150,7 @@ void TaskAngle(void *pvParameters)
                 ///////////////////////////////////////////////////////////////////////////////////
         }
         
-        // if (taskBrakes(true, PIN_BRAKE_LOWER))
+        // if (taskBrakes(BRAKE_ENGAGED, PIN_BRAKE_LOWER))
         // {
         //     // Brake engagement failure should be handled elsewhere.
         // }

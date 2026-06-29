@@ -28,3 +28,4 @@
 #include "TaskSleep.h"
 #include "Function_Config.h"
 
+// Empty task for future communication handling, currently not implemented
