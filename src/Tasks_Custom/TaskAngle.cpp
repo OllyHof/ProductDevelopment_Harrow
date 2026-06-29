@@ -58,12 +58,8 @@ void TaskAngle(void *pvParameters)
     float integral = 0.0f;
     float prevError = error;
     uint32_t lastTimeUs = micros();
-    uint32_t InfolastTimeUs = 0;
-    float InfodtSeconds = 0.0f;
-    if (motorinfoEnabled)
-    {
-        InfolastTimeUs = micros();
-    }
+    uint32_t InfolastTimeUs = micros();
+    float InfodtMS = 0.0f;
     SerialPrintf("> TaskAngle start: targetAngle=%d targetEncoder=%lld currentEncoder=%lld error=%.2f\n",
                  Machine_Settings.IdealAngle, idealEncoder, encoderValue, error);
 
@@ -98,23 +94,7 @@ void TaskAngle(void *pvParameters)
             }
             lastTimeUs = nowUs;
 
-            if (motorinfoEnabled)
-            {
-            uint32_t InfonowUs = micros();
-            float InfodtSeconds = (float)(InfonowUs - InfolastTimeUs) * 1e-6f;
-            if (InfodtSeconds <= 0.0f)
-            {
-                InfodtSeconds = 1e-6f;
-            }
-            }
-
             encoderValue = ReadEncoder();
-
-            if (xSemaphoreTake(xDebugSemaphore, 0) == pdTRUE)
-            {
-                encoderValue = idealEncoder; // Assume ideal position for assessment
-                SerialPrintf("> TaskAngle assessment mode: encoder assumed ideal\n");
-            }
 
             error = (float)(idealEncoder - encoderValue);
 
@@ -141,13 +121,33 @@ void TaskAngle(void *pvParameters)
             uint8_t pwmValue = (uint8_t)LimitPWM((uint64_t)pwmMagnitude, 255, 0);
             analogWrite(PIN_ANGLE_MOTOR_PWM, pwmValue);
 
-            if ((motorinfoEnabled)&&(InfodtSeconds>0.1f))
-            {
-                SerialPrintf("> TaskAngle loop: encoder=%lld error=%.2f pwm=%u dir=%s\n",
-                             encoderValue, error, pwmValue,
-                             CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
-                             InfolastTimeUs = micros();
-            }
+                ///////////////////////////////////////////////////////////////////////////////////
+                // Debug commands
+                if (xSemaphoreTake(xDebugSemaphore, 0) == pdTRUE)
+                {
+                    encoderValue = idealEncoder; // Assume ideal position for assessment
+                    SerialPrintf("> TaskAngle assessment mode: encoder assumed ideal\n");
+                    break; // Exit the control loop for assessment
+                    
+                }
+
+                if (motorinfoEnabled)
+                {
+                    uint32_t InfonowUs = micros();
+                    InfodtMS = (float)(InfonowUs - InfolastTimeUs) * 1e-3f;
+
+                    if (InfodtMS >= MAX_MESSAGE_RATE)
+                    {
+                        SerialPrintf("> TaskAngleloop encoder=%lld error=%.2f pwm=%u dir=%s\n",
+                                    encoderValue,
+                                    error,
+                                    pwmValue,
+                                    CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
+
+                        InfolastTimeUs = InfonowUs;
+                    }
+                }
+                ///////////////////////////////////////////////////////////////////////////////////
         }
         
         // if (taskBrakes(true, PIN_BRAKE_LOWER))

@@ -88,13 +88,8 @@ void TaskPressure(void *pvParameters)
         float integral = 0.0f;
         float prevError = error;
         uint32_t lastTimeUs = micros();
-        uint32_t InfolastTimeUs = 0;
-        float InfodtSeconds = 0.0f;
-
-        if (motorinfoEnabled)
-        {
-            InfolastTimeUs = micros();
-        }
+        uint32_t InfolastTimeUs = micros();
+        float InfodtMS = 0.0f;
 
         SerialPrintf("> TaskPressure channel=%d start targetPressure=%.2f targetEncoder=%lld currentEncoder=%lld error=%.2f\n",
                      i + 1, Machine_Settings.IdealPressure, idealEncoder, config->EncoderValue, error);
@@ -135,16 +130,7 @@ void TaskPressure(void *pvParameters)
                 {
                     dtSeconds = 1e-6f;
                 }
-
-                if (motorinfoEnabled)
-                {
-                uint32_t InfonowUs = micros();
-                float InfodtSeconds = (float)(InfonowUs - InfolastTimeUs) * 1e-6f;
-                if (InfodtSeconds <= 0.0f)
-                {
-                    InfodtSeconds = 1e-6f;
-                }
-                }
+                lastTimeUs = nowUs;
 
                 // Sample encoder feedback
                 config->EncoderValue = ReadEncoder();
@@ -172,17 +158,6 @@ void TaskPressure(void *pvParameters)
                 uint8_t pwmValue = (uint8_t)LimitPWM((uint64_t)pwmMagnitude, 255, 0);
                 analogWrite(PIN_PRESSURE_MOTOR_PWM, pwmValue);
 
-                if ((motorinfoEnabled)&&(InfodtSeconds>0.1f))
-                {
-                SerialPrintf("> TaskPressure channel=%d loop encoder=%lld error=%.2f pwm=%u dir=%s\n",
-                             i + 1,
-                             config->EncoderValue,
-                             error,
-                             pwmValue,
-                             CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
-                             InfolastTimeUs = micros();
-                }
-
                 if (fabsf(error) <= PRESSURE_ERROR_THRESHOLD)
                 {
                     SerialPrintf("> TaskPressure channel=%d target reached: encoder=%lld error=%.2f pwm=%u dir=%s\n",
@@ -193,6 +168,8 @@ void TaskPressure(void *pvParameters)
                                  CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
                     break; // Exit the control loop when target is reached
                 }
+                ///////////////////////////////////////////////////////////////////////////////////
+                // Debug commands
                 if (xSemaphoreTake(xDebugSemaphore, 0) == pdTRUE)
                 {
                     config->EncoderValue = idealEncoder; // Assume ideal position for assessment
@@ -200,6 +177,25 @@ void TaskPressure(void *pvParameters)
                     break; // Exit the control loop for assessment
                     
                 }
+
+                if (motorinfoEnabled)
+                {
+                    uint32_t InfonowUs = micros();
+                    InfodtMS = (float)(InfonowUs - InfolastTimeUs) * 1e-3f;
+
+                    if (InfodtMS >= MAX_MESSAGE_RATE)
+                    {
+                        SerialPrintf("> TaskPressure channel=%d loop encoder=%lld error=%.2f pwm=%u dir=%s\n",
+                                    i + 1,
+                                    config->EncoderValue,
+                                    error,
+                                    pwmValue,
+                                    CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
+
+                        InfolastTimeUs = InfonowUs;
+                    }
+                }
+                ///////////////////////////////////////////////////////////////////////////////////
             }
 
             // Engage the brake after the setpoint has been reached

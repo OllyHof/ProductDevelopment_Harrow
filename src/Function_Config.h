@@ -44,6 +44,8 @@ typedef struct
     uint32_t IdealAngle; // 
     float IdealPressure;
 } CommunicationData_t;
+#define MAX_MESSAGE_RATE 0.1f // Maximum message rate in seconds (10 messages per second)
+
 
 extern CommunicationData_t Machine_Settings;
 extern SemaphoreHandle_t xHandleStartControlLoop;
