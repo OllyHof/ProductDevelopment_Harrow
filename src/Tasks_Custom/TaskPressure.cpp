@@ -54,9 +54,9 @@ MotorConfig_t motorConfigs[] =
     */
 };
 
-#define PressureToEncoder (838.4f*2.8f)           // Conversion factor from requested pressure to encoder counts 
-// 2.4 input = 0.5 output shaft rotation = 2012 encoder counts
-// => 1 input unit = 838.4 counts
+#define PressureToEncoder 1067.4f           // Conversion factor from requested pressure to encoder counts 
+// 2.4 input = 0.5 output shaft rotation = 2562 encoder counts
+// => 1 input unit = 1067 counts
 #define Clockwise HIGH                   // Motor direction used for Positive pressure adjustment direction
 #define CounterClockwise LOW          // Motor direction used for Negative pressure adjustment direction
 #define ProportionalGain 0.0010f          // Proportional gain for PWM output
@@ -152,7 +152,7 @@ void TaskPressure(void *pvParameters)
                 float derivative = (error - prevError) / dtSeconds;
                 integral += error * dtSeconds;
                 float pidOutput = ProportionalGain * error + IntegralGain * integral + DerivativeGain * derivative;
-                uint8_t direction = (pidOutput >= 0) ? Clockwise : CounterClockwise;
+                uint8_t direction = (error >= 0) ? Clockwise : CounterClockwise;
 
                 if (direction != CurrentDirection)
                 {

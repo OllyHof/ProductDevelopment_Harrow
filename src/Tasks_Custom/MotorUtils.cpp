@@ -56,7 +56,7 @@ void InitEncoder(gpio_num_t EncoderPinA, gpio_num_t EncoderPinB)
     int irq = digitalPinToInterrupt(EncoderPinA);
     if (irq != NOT_AN_INTERRUPT)
     {
-        attachInterrupt(irq, EncoderISR, CHANGE);
+        attachInterrupt(irq, EncoderISR, RISING);
     }
 }
 
