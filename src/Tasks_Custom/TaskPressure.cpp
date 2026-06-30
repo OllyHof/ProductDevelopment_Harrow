@@ -18,6 +18,7 @@
 #include <Arduino.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 #include <stdbool.h>
 #include <IOLib.h>
 ///////////////////////////////////////////////////////////////////////////////
@@ -37,7 +38,7 @@
 
 extern SemaphoreHandle_t xControlLoopSemaphore;
 
-extern MotorConfig_t motorConfigs[] = 
+MotorConfig_t motorConfigs[] = 
 {
     {PIN_PRESSURE_MOTOR_SEL_1, PIN_BRAKE_UPPER_1, 0,}, // Pressure channel 1
     /* Section commented out since it won't be used in the current machine configuration
@@ -110,7 +111,7 @@ void TaskPressure(void *pvParameters)
 
             if (taskBrakes(BRAKE_RELEASED, config->BrakeID))
             {
-                // Brake release failure should be handled by the calling task or error manager
+                if (BRAKE_FAIL_ESTOP){xSemaphoreGive(xEstopSemaphore);}
             }
             // Single control loop - update every iteration
             uint32_t softStartStartUs = micros();
@@ -193,7 +194,7 @@ void TaskPressure(void *pvParameters)
             // Engage the brake after the setpoint has been reached
             if (taskBrakes(BRAKE_ENGAGED, config->BrakeID))
             {
-                // Brake engagement failure should be handled elsewhere
+                if (BRAKE_FAIL_ESTOP){xSemaphoreGive(xEstopSemaphore);}
             }
             // Stop the motor once pressure control is complete
             analogWrite(PIN_PRESSURE_MOTOR_PWM, 0);

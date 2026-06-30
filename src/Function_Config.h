@@ -49,12 +49,15 @@ typedef struct
 
 extern CommunicationData_t Machine_Settings;
 extern SemaphoreHandle_t xHandleStartControlLoop;
+extern SemaphoreHandle_t xEstopSemaphore; // Semaphore to trigger ESTOP
 extern SemaphoreHandle_t xResetSemaphore; // Semaphore to signal ESTOP reset
 extern SemaphoreHandle_t xDebugSemaphore; // Semaphore to signal assessment task
 extern volatile bool estopActive; // Flag to indicate if ESTOP is active
 extern volatile bool estopDone; // Flag to incidacate if ESTOP actions have completed
 extern bool motorinfoEnabled; // Flag to indicate if motor info display is enabled
 extern bool RealTimeModeEnabled; // Flag to indicate if real-time mode is enabled
+
+#define BRAKE_FAIL_ESTOP false
 
 typedef enum
 {

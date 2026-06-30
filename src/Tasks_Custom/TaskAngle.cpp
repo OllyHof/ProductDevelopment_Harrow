@@ -81,7 +81,7 @@ void TaskAngle(void *pvParameters)
 
         // if (taskBrakes(BRAKE_RELEASED, PIN_BRAKE_LOWER))
         // {
-        //     // Brake release failure should be handled by the calling task or error manager.
+        //     if (BRAKE_FAIL_ESTOP){xSemaphoreGive(xEstopSemaphore);}
         // }
 
         while (fabsf(error) > ANGLE_ERROR_THRESHOLD)
@@ -152,7 +152,7 @@ void TaskAngle(void *pvParameters)
         
         // if (taskBrakes(BRAKE_ENGAGED, PIN_BRAKE_LOWER))
         // {
-        //     // Brake engagement failure should be handled elsewhere.
+        //     if (BRAKE_FAIL_ESTOP){xSemaphoreGive(xEstopSemaphore);}
         // }
         
 
