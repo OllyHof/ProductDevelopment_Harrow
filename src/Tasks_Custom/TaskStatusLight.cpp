@@ -24,6 +24,9 @@
 #include "SerialPrintf.h"
 #include "InfoRTOS.h"
 
+MachineStatus_t PreviousMachineStatus = STATUS_NOCONTROL;
+MachineStatus_t CurrentMachineStatus = STATUS_NOCONTROL;
+
 extern TaskHandle_t handle_PressureTask;
 extern TaskHandle_t handle_AngleTask;
 extern TaskHandle_t handle_ControlLoopTask;
@@ -65,8 +68,8 @@ void StatusLightHandler(void *pvParameters)
     delay(100); // Update every 100 ms
 }
 
-// void SetMachineStatus(MachineStatus_t status, bool OverrideError = false)
-void SetMachineStatus(MachineStatus_t status, bool OverrideError = false)
+// void SetMachineStatus(MachineStatus_t status, bool OverrideError)
+void SetMachineStatus(MachineStatus_t status, bool OverrideError)
 {
     if (OverrideError || (CurrentMachineStatus != STATUS_ERROR_HARD))
     {

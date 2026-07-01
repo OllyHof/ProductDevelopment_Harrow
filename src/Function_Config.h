@@ -42,8 +42,6 @@ typedef struct {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Control Loop Thresholds - scaled for full operating ranges
-// Angle: 10-35 degrees (25° full range = 12,800 counts), threshold ~0.059°
-// Pressure: 1-2.4 kg (1.4 kg full range = 140,564 counts), threshold ~0.002 kg
 
 #define ANGLE_ERROR_THRESHOLD    0     
 #define PRESSURE_ERROR_THRESHOLD 0
@@ -68,11 +66,11 @@ extern volatile bool estopDone; // Flag to incidacate if ESTOP actions have comp
 extern bool motorinfoEnabled; // Flag to indicate if motor info display is enabled
 extern bool RealTimeModeEnabled; // Flag to indicate if real-time mode is enabled
 
-#define BRAKE_FAIL_ESTOP false
+#define BRAKE_FAIL_ESTOP false // Set to true to trigger an ESTOP if a brake fails to engage/disengage during operation
 
 typedef enum
 {
-    UNKNOWN = NULL ,
+    UNKNOWN = -1,
     BRAKE_RELEASED = 0,
     BRAKE_ENGAGED  = 1
 } BrakeState_t;

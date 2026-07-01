@@ -139,17 +139,17 @@ void TaskPressure(void *pvParameters)
                     CurrentDirection = direction;
                 }
 
-                float pwmMagnitude = fabsf(pidOutput);// * softStartGain;
-                if (pwmMagnitude >= 255.0f)
+                int pwmMagnitude = roundf(fabsf(pidOutput));// * softStartGain;
+                if (pwmMagnitude >= 255)
                 {
                     integral -= error * dtSeconds;
                     integral = constrain(integral, -10000, 10000);
+                    pwmMagnitude = 255;
                 }   
 
                 prevError = error;
 
-                uint8_t pwmValue = (uint8_t)LimitPWM((uint64_t)pwmMagnitude, 255, 0);
-                analogWrite(PIN_PRESSURE_MOTOR_PWM, pwmValue);
+                analogWrite(PIN_PRESSURE_MOTOR_PWM, pwmMagnitude);
 
                 if (fabsf(error) <= PRESSURE_ERROR_THRESHOLD)
                 {
@@ -157,7 +157,7 @@ void TaskPressure(void *pvParameters)
                                  i + 1,
                                  config->EncoderValue,
                                  error,
-                                 pwmValue,
+                                 pwmMagnitude,
                                  CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
                     break; // Exit the control loop when target is reached
                 }
@@ -182,7 +182,7 @@ void TaskPressure(void *pvParameters)
                                     i + 1,
                                     config->EncoderValue,
                                     error,
-                                    pwmValue,
+                                    pwmMagnitude,
                                     CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
 
                         InfolastTimeUs = InfonowUs;

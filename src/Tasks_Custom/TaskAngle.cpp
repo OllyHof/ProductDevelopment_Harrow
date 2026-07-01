@@ -106,16 +106,16 @@ void TaskAngle(void *pvParameters)
                 CurrentDirection = direction;
             }
 
-            float pwmMagnitude = fabsf(pidOutput);
-            if (pwmMagnitude >= 255.0f)
+            int pwmMagnitude = roundf(fabsf(pidOutput));
+            if (pwmMagnitude >= 255)
             {
-                pwmMagnitude = 255.0f;
+                pwmMagnitude = 255;
                 integral -= error * dtSeconds; // simple anti-windup
+                integral = constrain(integral, -10000, 10000);
             }
             prevError = error;
 
-            uint8_t pwmValue = (uint8_t)LimitPWM((uint64_t)pwmMagnitude, 255, 0);
-            analogWrite(PIN_ANGLE_MOTOR_PWM, pwmValue);
+            analogWrite(PIN_ANGLE_MOTOR_PWM, pwmMagnitude);
 
                 ///////////////////////////////////////////////////////////////////////////////////
                 // Debug commands
@@ -137,7 +137,7 @@ void TaskAngle(void *pvParameters)
                         SerialPrintf("> TaskAngleloop encoder=%lld error=%.2f pwm=%u dir=%s\n",
                                     encoderValue,
                                     error,
-                                    pwmValue,
+                                    pwmMagnitude,
                                     CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
 
                         InfolastTimeUs = InfonowUs;

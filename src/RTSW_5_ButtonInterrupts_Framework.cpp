@@ -51,6 +51,7 @@
 #include "SPIeeprom.h"
 #include "ADC3208Lib.h"
 #include "BrakeLib.h"
+#include "MotorUtils.h"
 
 #include "SystemTests.h"
 
@@ -65,7 +66,7 @@
 #include "Tasks_Custom/TaskPressure.h" 
 #include "Tasks_Custom/TaskAngle.h" 
 #include "Tasks_Custom/TaskStatusLight.h"
-#include "Tasks_Custom/MotorUtils.h"
+
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -104,11 +105,6 @@ typedef struct {
 } IOPinConfig_t;
 
 IOPinConfig_t ioPinConfigs[] = {
-    {PIN_BRAKE_UPPER_1},
-    {PIN_BRAKE_UPPER_2},
-    {PIN_BRAKE_UPPER_3},
-    {PIN_BRAKE_UPPER_4},
-    {PIN_BRAKE_LOWER},
     {PIN_PRESSURE_MOTOR_DIR},
     {PIN_PRESSURE_MOTOR_SEL_1},
     {PIN_PRESSURE_MOTOR_SEL_2},
@@ -117,14 +113,11 @@ IOPinConfig_t ioPinConfigs[] = {
     {PIN_ANGLE_MOTOR_DIR},
 };
 
-static const uint32_t ESTOP_DEBOUNCE_MS = 250u;
 void StartUserTasks(void);
 void TaskControlLoop(void *pvParameters);
-void TestTask(void *pvParameters);
 void IRAM_ATTR buttonISR();
 void ESTOPHandler(void *pvParameters);
 void ResetHandler(void *pvParameters);
-void IO_INIT();
 
 ///////////////////////////////////////////////////////////////////////////////
 // wrapper, simplified version of xTaskCreatePinnedToCore
@@ -166,7 +159,8 @@ bool platformInit(void)
     //qc_Init();
     //dac_Init();
     Brake_Init();
-    
+    Motor_Init();
+
     i2cOK  = i2c_Init();
     oledOK = oled_Init();
     uartOK = uart_Init();
@@ -281,10 +275,11 @@ void StartUserTasks(void)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-//ISR
-
-///////////////////////////////////////////////////////////////////////////////
 // Funtions
+
+////////////////////////////////////////////////////////////////////////////////
+// void TaskControlLoop(void *pvParameters)
+// Task that manages the control loop for pressure and angle control. It waits for a signal to start the control loop and then initiates the pressure and angle tasks.
 void TaskControlLoop(void *pvParameters)
 {
     BaseType_t result = pdFAIL;
@@ -327,12 +322,20 @@ void TaskControlLoop(void *pvParameters)
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// void IRAM_ATTR buttonISR()
+// Interrupt Service Routine for the ESTOP button. This function is called when the ESTOP button is pressed (falling edge detected).
+
 void IRAM_ATTR buttonISR()
 {
     BaseType_t xHigherPriorityTaskWoken = pdFALSE;
     xSemaphoreGiveFromISR(xEstopSemaphore, &xHigherPriorityTaskWoken);
     portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// void ESTOPHandler(void *pvParameters)
+// Task that handles the emergency stop (ESTOP) functionality. It is triggered by the ESTOP button interrupt.
 
 void ESTOPHandler(void *pvParameters)
 {
@@ -370,6 +373,10 @@ void ESTOPHandler(void *pvParameters)
     }
 }
 
+//////////////////////////////////////////////////////////////////////////////////
+// void ResetHandler(void *pvParameters)
+// Task that handles the reset functionality after an emergency stop (ESTOP). It is triggered by the reset command.
+
 void ResetHandler(void *pvParameters)
 {
     while (true)
@@ -394,38 +401,6 @@ void ResetHandler(void *pvParameters)
         else {SerialPrintf("> A Brake Failed to return to correct state, Please Restart the system using the restart command"); SetMachineStatus(STATUS_ERROR_HARD); while(1){}} 
         
     }
-}
-
-void IO_INIT()
-{
-    //while(true){
-    for (int i = 0; i < (sizeof(ioPinConfigs) / sizeof(ioPinConfigs[0])); i++)
-    {
-        pinMode(ioPinConfigs[i].pin, OUTPUT); // Set all pins to output mode
-        digitalWrite(ioPinConfigs[i].pin, HIGH); // Set all pins to high to prevent unintended outputs
-    //    taskSleep(100); // Small delay to ensure proper initialization
-    }
-    /*
-        for (int i = 0; i < (sizeof(ioPinConfigs) / sizeof(ioPinConfigs[0])); i++)
-        {
-            pinMode(ioPinConfigs[i].pin, OUTPUT); // Set all pins to output mode
-            digitalWrite(ioPinConfigs[i].pin, LOW); // Set all pins to high to prevent unintended outputs
-            taskSleep(100); // Small delay to ensure proper initialization
-        }
-    */
-    //}
-    pinMode(PIN_PRESSURE_MOTOR_PWM, OUTPUT); // Set PWM pin to analog mode for motor control
-    analogWrite(PIN_PRESSURE_MOTOR_PWM, 0); // Initialize PWM output to 0 (motor off)
-
-    pinMode(PIN_ANGLE_MOTOR_PWM, OUTPUT); // Set PWM pin to analog mode for motor control
-    analogWrite(PIN_ANGLE_MOTOR_PWM, 0); // Initialize PWM output to 0 (motor off)
-
-    // Initialize encoder pins with pull-up to prevent floating and noise issues
-    pinMode(PIN_PRESSURE_SENSOR_A, INPUT_PULLUP);
-    pinMode(PIN_PRESSURE_SENSOR_B, INPUT_PULLUP);
-    pinMode(PIN_ANGLE_SENSOR_A, INPUT_PULLUP);
-    pinMode(PIN_ANGLE_SENSOR_B, INPUT_PULLUP);
-    pinMode(PIN_BUTTON_ESTOP, INPUT_PULLDOWN); // Initialize ESTOP button pin with internal pull-up
 }
 
 ///////////////////////////////////////////////////////////////////////////////

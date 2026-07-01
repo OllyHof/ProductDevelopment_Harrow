@@ -14,28 +14,48 @@
 #include <IOLib.h>
 #include "SerialPrintf.h"
 #include "MotorUtils.h"
-
+#include "Hardware_Config.h"
 static volatile int64_t s_encoderCount = 0;
 static gpio_num_t s_encoderPinA = (gpio_num_t)-1;
 static gpio_num_t s_encoderPinB = (gpio_num_t)-1;
 static portMUX_TYPE s_encoderMux = portMUX_INITIALIZER_UNLOCKED;
 
-uint8_t LimitPWM(uint64_t voltage, uint8_t maxVoltage, uint8_t minVoltage)
+void Motor_Init()
 {
-    if (voltage > maxVoltage)
-    {
-        //SerialPrintf("> LimitPWM: clamped %llu to %u\n", voltage, maxVoltage);
-        voltage = maxVoltage;
-    }
-    else if (voltage < minVoltage)
-    {
-        //SerialPrintf("> LimitPWM: raised %llu to %u\n", voltage, minVoltage);
-        voltage = minVoltage;
-    }
+    // Initialize motor control pins for PWM and direction
+    pinMode(PIN_ANGLE_MOTOR_PWM, OUTPUT);
+    pinMode(PIN_PRESSURE_MOTOR_PWM, OUTPUT);
+    
+    pinMode(PIN_ANGLE_MOTOR_DIR, OUTPUT);
+    pinMode(PIN_PRESSURE_MOTOR_DIR, OUTPUT);
 
-    return (uint8_t)voltage;
+    // Initialize encoder pins for input with pull-up resistors
+    pinMode(PIN_ANGLE_SENSOR_A, INPUT_PULLUP);
+    pinMode(PIN_ANGLE_SENSOR_B, INPUT_PULLUP);
+    pinMode(PIN_PRESSURE_SENSOR_A, INPUT_PULLUP);
+    pinMode(PIN_PRESSURE_SENSOR_B, INPUT_PULLUP);
+
+    // Initialize encoder count and set up interrupts for encoder reading
+    ResetEncoder(0);
+
+    // Initialize motor selection pins for output
+    pinMode(PIN_PRESSURE_MOTOR_SEL_1, OUTPUT);
+    pinMode(PIN_PRESSURE_MOTOR_SEL_2, OUTPUT);
+    pinMode(PIN_PRESSURE_MOTOR_SEL_3, OUTPUT);
+    pinMode(PIN_PRESSURE_MOTOR_SEL_4, OUTPUT);
+
+    //setting all motor selection pins to HIGH to disable all motors initially
+    digitalWrite(PIN_PRESSURE_MOTOR_SEL_1, HIGH);
+    digitalWrite(PIN_PRESSURE_MOTOR_SEL_2, HIGH);
+    digitalWrite(PIN_PRESSURE_MOTOR_SEL_3, HIGH);
+    digitalWrite(PIN_PRESSURE_MOTOR_SEL_4, HIGH);
+
+    // setting analog resolution to 8 bits for PWM output (0-255)
+    analogWriteResolution(8);
+
+    // setting PWM frequency to 200 kHz for both motors
+    analogWriteFrequency(200000);
 }
-
 void ChangeDirection(gpio_num_t directionPin, uint8_t direction)
 {
     //SerialPrintf("> ChangeDirection: pin=%d direction=%s\n", (int)directionPin,

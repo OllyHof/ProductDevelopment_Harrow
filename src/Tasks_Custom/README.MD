@@ -2,9 +2,7 @@
 Oliver Hofman
 
 ## Tasks
-The 5 main custom task modules are:
-* TaskCommunicate
-* TaskBrakes
+The 3 main custom task modules are:
 * TaskStatusLight
 * TaskPressure
 * TaskAngle
