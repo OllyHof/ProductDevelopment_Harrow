@@ -32,7 +32,7 @@
 #include "TaskPressure.h"
 #include "MotorUtils.h"
 #include "Function_Config.h"
-#include "TaskBrakes.h"
+#include "BrakeLib.h"
 #include "TaskSleep.h"
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -47,6 +47,8 @@ MotorConfig_t motorConfigs[] =
     {PIN_PRESSURE_MOTOR_SEL_4, PIN_BRAKE_UPPER_4, 0,}, // Pressure channel 4
     */
 };
+
+#define NUM_MOTOR_CONFIGS (sizeof(motorConfigs) / sizeof(MotorConfig_t))
 
 #define PressureToEncoder 1067.4f           // Conversion factor from requested pressure to encoder counts 
 // 2.4 input = 0.5 output shaft rotation = 2562 encoder counts
@@ -69,7 +71,7 @@ void TaskPressure(void *pvParameters)
 {
     InitEncoder(PIN_PRESSURE_SENSOR_A, PIN_PRESSURE_SENSOR_B);
 
-    for (int i = 0; i < sizeof(motorConfigs) / sizeof(MotorConfig_t); i++)
+    for (int i = 0; i < NUM_MOTOR_CONFIGS; i++)
     {
         MotorConfig_t *config = &motorConfigs[i];
         float idealEncoder_float = Machine_Settings.IdealPressure * PressureToEncoder;
@@ -109,10 +111,8 @@ void TaskPressure(void *pvParameters)
                          i + 1,
                          CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
 
-            if (taskBrakes(BRAKE_RELEASED, config->BrakeID))
-            {
-                if (BRAKE_FAIL_ESTOP){xSemaphoreGive(xEstopSemaphore);}
-            }
+            if (Brake_Set(config->BrakeID, BRAKE_RELEASED)){if(BRAKE_FAIL_ESTOP){xSemaphoreGive(xEstopSemaphore);}}
+
             // Single control loop - update every iteration
             uint32_t softStartStartUs = micros();
             while (true)
@@ -192,10 +192,7 @@ void TaskPressure(void *pvParameters)
             }
 
             // Engage the brake after the setpoint has been reached
-            if (taskBrakes(BRAKE_ENGAGED, config->BrakeID))
-            {
-                if (BRAKE_FAIL_ESTOP){xSemaphoreGive(xEstopSemaphore);}
-            }
+            if (Brake_Set(config->BrakeID, BRAKE_ENGAGED)){if(BRAKE_FAIL_ESTOP){xSemaphoreGive(xEstopSemaphore);}}
             // Stop the motor once pressure control is complete
             analogWrite(PIN_PRESSURE_MOTOR_PWM, 0);
             SerialPrintf("> TaskPressure channel=%d complete: motor stopped and brake engaged\n", i + 1);
@@ -211,7 +208,7 @@ void TaskPressure(void *pvParameters)
 
 void Estop_Pressure()
 {
-    for(int i = 0; i < sizeof(motorConfigs) / sizeof(MotorConfig_t); i++)
+    for(int i = 0; i < NUM_MOTOR_CONFIGS; i++)
     {
         analogWrite(PIN_PRESSURE_MOTOR_PWM, 0); // Stop the motor immediately
     }

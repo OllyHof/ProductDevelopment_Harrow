@@ -26,7 +26,7 @@
 #include "TaskAngle.h"
 #include "MotorUtils.h"
 #include "Function_Config.h"
-#include "TaskBrakes.h"
+#include "BrakeLib.h"
 #include "TaskSleep.h"
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -79,11 +79,7 @@ void TaskAngle(void *pvParameters)
         SerialPrintf("> TaskAngle direction=%s\n",
                      CurrentDirection == Clockwise ? "Clockwise" : "CounterClockwise");
 
-        // if (taskBrakes(BRAKE_RELEASED, PIN_BRAKE_LOWER))
-        // {
-        //     if (BRAKE_FAIL_ESTOP){xSemaphoreGive(xEstopSemaphore);}
-        // }
-
+//        if(Brake_Set(PIN_BRAKE_LOWER, BRAKE_RELEASED)){if(BRAKE_FAIL_ESTOP){xSemaphoreGive(xEstopSemaphore);}} // Release the brake to allow motor movement
         while (fabsf(error) > ANGLE_ERROR_THRESHOLD)
         {
             uint32_t nowUs = micros();
@@ -150,10 +146,7 @@ void TaskAngle(void *pvParameters)
                 ///////////////////////////////////////////////////////////////////////////////////
         }
         
-        // if (taskBrakes(BRAKE_ENGAGED, PIN_BRAKE_LOWER))
-        // {
-        //     if (BRAKE_FAIL_ESTOP){xSemaphoreGive(xEstopSemaphore);}
-        // }
+//        if(Brake_Set(PIN_BRAKE_LOWER, BRAKE_ENGAGED)){if(BRAKE_FAIL_ESTOP){xSemaphoreGive(xEstopSemaphore);}} // Engage the brake to hold the motor in position after reaching the target angle
         
 
     }

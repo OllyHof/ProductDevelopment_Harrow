@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 //
-// TaskBrakes.cpp
+// BrakeLib.cpp
 //
 // Authors: 	Oliver Hofman
 // Edit date: 	22-04-2026
@@ -19,27 +19,38 @@
 ///////////////////////////////////////////////////////////////////////////////
 // application includes
 
-#include "TaskBrakes.h"
+#include "BrakeLib.h"
 #include "Hardware_Config.h"
 #include "SerialPrintf.h"
 #include "Function_Config.h"
 
 BrakeConfig_t BrakeConfigs[] = 
 {
-    {PIN_BRAKE_UPPER_1, "Brake Upper 1", BRAKE_ENGAGED}, // Pressure channel 1
+    {PIN_BRAKE_UPPER_1, "Brake Upper 1", UNKNOWN, BRAKE_ENGAGED}, // Pressure channel 1
 	/* Section commented out since it won't be used in the current machine configuration
-	{PIN_BRAKE_UPPER_2, "Brake Upper 2", BRAKE_ENGAGED}, // Pressure channel 2
-    {PIN_BRAKE_UPPER_3, "Brake Upper 3", BRAKE_ENGAGED}, // Pressure channel 3
-    {PIN_BRAKE_UPPER_4, "Brake Upper 4", BRAKE_ENGAGED}, // Pressure channel 4
-	{PIN_BRAKE_LOWER, "Brake Lower", BRAKE_ENGAGED} // Angle channel
+	{PIN_BRAKE_UPPER_2, "Brake Upper 2", UNKNOWN, BRAKE_ENGAGED}, // Pressure channel 2
+    {PIN_BRAKE_UPPER_3, "Brake Upper 3", UNKNOWN, BRAKE_ENGAGED}, // Pressure channel 3
+    {PIN_BRAKE_UPPER_4, "Brake Upper 4", UNKNOWN, BRAKE_ENGAGED}, // Pressure channel 4
+	{PIN_BRAKE_LOWER, "Brake Lower", UNKNOWN, BRAKE_ENGAGED} // Angle channel
 	*/
 };
 
 
-///////////////////////////////////////////////////////////////////////////////
-// bool taskBrakes (bool BrakeOn, uint8_t BrakePin)
+////////////////////////////////////////////////////////////////////////////////
+void Brake_Init()
+{
+	for(int i = 0; i < sizeof(BrakeConfigs) / sizeof(BrakeConfig_t); i++) // For all brakes
+	{
+		BrakeConfig_t *config = &BrakeConfigs[i]; // Pointer to correct brake
+		pinMode(config->BrakeID, OUTPUT); // Set brake pin as output
+		Brake_Set(config->BrakeID, config->BrakeDefault); // Set brake to initial state
+	}
+}
 
-bool taskBrakes (BrakeState_t state, gpio_num_t BrakePin)
+///////////////////////////////////////////////////////////////////////////////
+// bool Brake_Set (gpio_num_t BrakePin, BrakeState_t state)
+
+bool Brake_Set (gpio_num_t BrakePin, BrakeState_t state)
 {
 	digitalWrite(BrakePin, state); // Set output pin to desired value  
 
@@ -57,26 +68,16 @@ bool taskBrakes (BrakeState_t state, gpio_num_t BrakePin)
 	return false; // Return false to indicate no error occurred (true would indicate a failure to set the brake state)
 }
 
-//////////////////////////////////////////////////////////////////////////////
-// Implement TaskBrakes as follows:
-
-// - If BrakeOn is true, set the brake pin to engage the brakes (e.g., LOW)
-// - If BrakeOn is false, set the brake pin to disengage the brakes (e
-//        if (taskBrakes(//BrakeOn, //BrakePin)){
-//            // Give Interrupt Error, brake error
-//        }
-// - Note: if no error occurs this if statement gets skipped.
-
-
 ////////////////////////////////////////////////////////////////////////////////
-bool Estop_Brake()
+// bool Brake_Estop()
+bool Brake_Estop()
 {
 	bool result = true;
 	for(int i = 0; i < sizeof(BrakeConfigs) / sizeof(BrakeConfig_t); i++) // For all brakes
 	{
 		BrakeConfig_t *config = &BrakeConfigs[i]; // Pointer to correct brake
 
-		if (taskBrakes(BRAKE_ENGAGED, config->BrakeID)) 
+		if (Brake_Set(config->BrakeID, BRAKE_ENGAGED)) 
 		{SerialPrintf("> ERROR: Failed to engage %s!\n", config->BrakeName.c_str()); result = false;}
 		else 
 		{SerialPrintf("> %s engaged successfully.\n", config->BrakeName.c_str());}
@@ -84,16 +85,20 @@ bool Estop_Brake()
 	return result;
 }
 
-bool Reset_Brake()
+/////////////////////////////////////////////////////////////////////////////////
+// Bool Brake_Reset() 
+bool Brake_Reset()
 {
 	bool result = true;
 	for(int i = 0; i < sizeof(BrakeConfigs) / sizeof(BrakeConfig_t); i++) // For all brakes
 	{
 		BrakeConfig_t *config = &BrakeConfigs[i]; // Pointer to correct brake
-		if (taskBrakes(config->BrakeState,config->BrakeID)) // Set brake to original state
+		if (Brake_Set(config->BrakeID, config->BrakeState)) // Set brake to original state
 		{SerialPrintf("> ERROR %s Failed to return to original state!\n", config->BrakeName.c_str()); result = false;}
 		else
 		{SerialPrintf("> %s returned to original state: %s\n", config->BrakeName.c_str(), ((config->BrakeState == BRAKE_ENGAGED) ? "Engaged" : "Released"));}
 	}
 	return result;
 }
+
+/////////////////////////////////////////////////////////////////////////////////////

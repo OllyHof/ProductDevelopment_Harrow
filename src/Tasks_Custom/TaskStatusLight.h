@@ -18,7 +18,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // functions
 
-void MachineStatus(void *pvParameters);
-void taskStatusLight(uint8_t Status);
+void SetMachineStatus(MachineStatus_t status, bool OverrideError = false);
+void StatusLightHandler(void *pvParameters);
 
 #endif // TASKSTATUSLIGHT_H_

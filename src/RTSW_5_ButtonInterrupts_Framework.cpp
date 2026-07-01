@@ -50,6 +50,7 @@
 #include "DAC4922Lib.h"
 #include "SPIeeprom.h"
 #include "ADC3208Lib.h"
+#include "BrakeLib.h"
 
 #include "SystemTests.h"
 
@@ -61,11 +62,8 @@
 #include "Tasks_Framework/TaskCLIHandler.h"
 #include "Tasks_Framework/TaskCommandHandler.h"
 
-
-#include "Tasks_Custom/TaskBrakes.h" // implemented; verify hardware mapping
-#include "Tasks_Custom/TaskCommunicate.h" // implemented
-#include "Tasks_Custom/TaskPressure.h" // implemented
-#include "Tasks_Custom/TaskAngle.h" // implemented (needs review)
+#include "Tasks_Custom/TaskPressure.h" 
+#include "Tasks_Custom/TaskAngle.h" 
 #include "Tasks_Custom/TaskStatusLight.h"
 #include "Tasks_Custom/MotorUtils.h"
 
@@ -85,6 +83,7 @@ xTaskHandle handle_PressureTask = NULL;
 xTaskHandle handle_AngleTask = NULL;
 xTaskHandle handle_ESTOPHandlerTask = NULL;
 xTaskHandle handle_ResetHandlerTask = NULL;
+xTaskHandle handle_StatusLightTask = NULL;
 
 SemaphoreHandle_t xControlLoopSemaphore = NULL;
 SemaphoreHandle_t xHandleStartControlLoop = NULL;
@@ -166,7 +165,7 @@ bool platformInit(void)
     //spi_Init();
     //qc_Init();
     //dac_Init();
-    IO_INIT();
+    Brake_Init();
     
     i2cOK  = i2c_Init();
     oledOK = oled_Init();
@@ -263,7 +262,8 @@ void StartUserTasks(void)
     result &= platformTaskCreate(TaskControlLoop, NULL, "task_control_loop", &handle_ControlLoopTask);
     result &= platformTaskCreate(ESTOPHandler, NULL, "task_estop_handler", &handle_ESTOPHandlerTask);
     result &= platformTaskCreate(ResetHandler, NULL, "task_reset_handler", &handle_ResetHandlerTask);
-    taskSleep(100); // Give the pin time to settle after startup
+    result &= platformTaskCreate(StatusLightHandler, NULL, "task_status_light", &handle_StatusLightTask);
+    taskSleep(100);
 
     if (digitalRead(PIN_BUTTON_ESTOP) == LOW)
     {
@@ -291,6 +291,7 @@ void TaskControlLoop(void *pvParameters)
     while (true)
     {
         xSemaphoreTake(xHandleStartControlLoop, portMAX_DELAY);
+        SetMachineStatus(STATUS_RUNNING); // Set machine status to running when control loop starts
         if (RealTimeModeEnabled)
         {
             // Currently crashes when both tasks are started simultaneously, so we will start them sequentially for now, (Possibly due to encoder handling, needs further investigation)
@@ -321,6 +322,7 @@ void TaskControlLoop(void *pvParameters)
             else{SerialPrintf("> Angle task already running, skipping creation.\n");}
             xSemaphoreTake(xControlLoopSemaphore, portMAX_DELAY);
         }
+        SetMachineStatus(STATUS_ALLGOOD); // Set machine status to all good when control loop is complete
         SerialPrintf("> Machine reached ideal settings.\n");
     }
 }
@@ -337,7 +339,7 @@ void ESTOPHandler(void *pvParameters)
     uint8_t nEstopCount = 0;
     bool result = true;
     while (true)
-    {
+    {   
         xSemaphoreTake(xEstopSemaphore, portMAX_DELAY);
         if (estopActive) continue; // Ignore if already handling an ESTOP
         
@@ -347,9 +349,8 @@ void ESTOPHandler(void *pvParameters)
         nEstopCount++;
         SerialPrintf("> ESTOP button pressed! Initiating emergency stop...\n");
         SerialPrintf("> Total ESTOP presses: %d\n", nEstopCount);
-        taskStatusLight(STATUS_ERROR_HARD);
-
-        result = Estop_Brake();
+        SetMachineStatus(STATUS_ERROR_SOFT); // Set machine status to critical error during ESTOP handling
+        result = Brake_Estop();
         Estop_Pressure();
         Estop_Angle();
 
@@ -358,7 +359,7 @@ void ESTOPHandler(void *pvParameters)
         if (handle_AngleTask != NULL){vTaskSuspend(handle_AngleTask);} // Suspend the angle control task to stop motor operation
 
         if (result) {SerialPrintf("> Emergency stop actions executed.\n");}
-        else {SerialPrintf("> Estop actions failed, Please inform a supervisor"); while(1){};} // Suspend all further actions if Estop actions failed
+        else {SerialPrintf("> Estop actions failed, Please inform a supervisor"); SetMachineStatus(STATUS_ERROR_HARD, true); while(1){};} // Suspend all further actions if Estop actions failed
 
         while (digitalRead(PIN_BUTTON_ESTOP) == LOW)
         {
@@ -366,7 +367,6 @@ void ESTOPHandler(void *pvParameters)
         }
         estopDone   = true;
         SerialPrintf("> System is now in a safe state. Please reset using reset command to resume operation.\n");
-        taskStatusLight(STATUS_ERROR_SOFT);
     }
 }
 
@@ -379,30 +379,20 @@ void ResetHandler(void *pvParameters)
         if ((handle_ControlLoopTask != NULL) && (eTaskGetState(handle_ControlLoopTask) == eSuspended)) // Check if the control loop task exists and is suspended
         {vTaskResume(handle_ControlLoopTask);}  // Resume the control loop task
 
-        if (Reset_Brake()) // Suspend all further actions if Brake failed
+        if (Brake_Reset()) // Suspend all further actions if Brake failed
         {
             if ((handle_PressureTask != NULL) && (eTaskGetState(handle_PressureTask) == eSuspended)) // Check if the pressure control task exists and is suspended
             {vTaskResume(handle_PressureTask);} // Resume the pressure control task
 
             if ((handle_AngleTask != NULL)&&(eTaskGetState(handle_AngleTask) == eSuspended)) // Check if the angle control task exists and is suspended
             {vTaskResume(handle_AngleTask);} // Resume the angle control task
-
-            estopActive = false; // Reset the ESTOP active flag to allow future ESTOP handling
             
             SerialPrintf("> ESTOP reset complete. System is now operational.\n");
+            SetMachineStatus(PreviousMachineStatus); // Set machine status to previous status, overriding any error status
+            estopActive = false; // Reset the ESTOP active flag to allow future ESTOP handling
         }
-        else {SerialPrintf("> A Brake Failed to return to correct state, Please Restart the system using the restart command"); while(1){}} 
-    }
-}
-
-void TestTask(void *pvParameters)
-{
-    while (true)
-    {
-        xSemaphoreTake(xHandleStartControlLoop, portMAX_DELAY);
-        SerialPrintf("> TestTask is running...\n");
-        SerialPrintf("> Machine_Settings: IdealAngle = %d, IdealPressure = %.2f\n", Machine_Settings.IdealAngle, Machine_Settings.IdealPressure);
-        taskSleep(MAX_MESSAGE_RATE_MS); 
+        else {SerialPrintf("> A Brake Failed to return to correct state, Please Restart the system using the restart command"); SetMachineStatus(STATUS_ERROR_HARD); while(1){}} 
+        
     }
 }
 

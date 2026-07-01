@@ -18,16 +18,27 @@
 #ifndef FUNCTION_CONFIG_H
 #define FUNCTION_CONFIG_H
 
-// TaskStatusLight
-#define STATUS_NOCONTROL         0x00 // Yellow Blinking (system initializing)
-#define STATUS_ERROR_HARD        0x01 // Red Blinking (critical error)
-#define STATUS_ERROR_SOFT        0x02 // Red Solid (non-critical error)
-#define STATUS_ALLGOOD           0x03 // Green Solid (idle/ready)
-#define STATUS_STANDBY           0x04 // Yellow Solid (standby mode)
-#define STATUS_RUNNING           0x05 // Green Blinking (actively operating)
-#define STATUS_WARNING           0x06 // Red + Yellow Solid (warning condition)
-#define STATUS_DISABLED          0x07 // All LEDs Off (offline/disabled)
-#define STATUS_MAINTENANCE       0x08 // All Colors Blinking (diagnostic/service mode)
+// Status codes for machine operation
+typedef enum {
+    STATUS_NOCONTROL = 0x00, // System initializing
+    STATUS_ERROR_HARD = 0x01, // Critical error
+    STATUS_ALLGOOD = 0x02, // idle/ready
+    STATUS_RUNNING = 0x03, // actively operating
+    STATUS_MAINTENANCE = 0x04, //diagnostic/service mode
+    STATUS_ERROR_SOFT = 0x05, // Non-critical error
+} MachineStatus_t;
+
+// Current Machine Status
+extern MachineStatus_t PreviousMachineStatus;
+extern MachineStatus_t CurrentMachineStatus;
+
+// Status codes for machine operation
+typedef struct {
+    bool red;
+    bool green;
+    bool yellow;
+    bool blink;
+} LEDConfig_t;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Control Loop Thresholds - scaled for full operating ranges
@@ -61,6 +72,7 @@ extern bool RealTimeModeEnabled; // Flag to indicate if real-time mode is enable
 
 typedef enum
 {
+    UNKNOWN = NULL ,
     BRAKE_RELEASED = 0,
     BRAKE_ENGAGED  = 1
 } BrakeState_t;
@@ -76,8 +88,10 @@ typedef struct
 {
     gpio_num_t BrakeID;     // Motor select GPIO for the pressure channel
 	String BrakeName;		// Name of brake for console log
-    BrakeState_t BrakeState;        // Brake State for Estop logic
+    BrakeState_t BrakeState;    // Brake State for Estop/Reset logic
+    BrakeState_t BrakeDefault;  // Brake State for Initialization
 } BrakeConfig_t;
+
 
 
 
