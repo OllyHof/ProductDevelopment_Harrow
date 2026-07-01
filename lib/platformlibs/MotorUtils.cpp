@@ -15,6 +15,8 @@
 #include "SerialPrintf.h"
 #include "MotorUtils.h"
 #include "Hardware_Config.h"
+#include "Function_Config.h"
+
 static volatile int64_t s_encoderCount = 0;
 static gpio_num_t s_encoderPinA = (gpio_num_t)-1;
 static gpio_num_t s_encoderPinB = (gpio_num_t)-1;
@@ -51,10 +53,10 @@ void Motor_Init()
     digitalWrite(PIN_PRESSURE_MOTOR_SEL_4, HIGH);
 
     // setting analog resolution to 8 bits for PWM output (0-255)
-    analogWriteResolution(8);
+    analogWriteResolution(AnalogWriteResolution);
 
     // setting PWM frequency to 200 kHz for both motors
-    analogWriteFrequency(200000);
+    analogWriteFrequency(AnalogWriteFrequency);
 }
 void ChangeDirection(gpio_num_t directionPin, uint8_t direction)
 {

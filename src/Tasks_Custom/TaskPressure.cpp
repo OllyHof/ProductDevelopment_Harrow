@@ -140,11 +140,11 @@ void TaskPressure(void *pvParameters)
                 }
 
                 int pwmMagnitude = roundf(fabsf(pidOutput));// * softStartGain;
-                if (pwmMagnitude >= 255)
+                if (pwmMagnitude >= AnalogWriteMaxValue)
                 {
                     integral -= error * dtSeconds;
                     integral = constrain(integral, -10000, 10000);
-                    pwmMagnitude = 255;
+                    pwmMagnitude = AnalogWriteMaxValue;
                 }   
 
                 prevError = error;

@@ -50,7 +50,7 @@ typedef struct {
 // TaskCommunicate
 typedef struct
 {
-    uint32_t IdealAngle; // 
+    uint32_t IdealAngle; 
     float IdealPressure;
 } CommunicationData_t;
 #define MAX_MESSAGE_RATE_MS 100 // Maximum message rate in milliseconds (10 messages per second)
@@ -67,6 +67,11 @@ extern bool motorinfoEnabled; // Flag to indicate if motor info display is enabl
 extern bool RealTimeModeEnabled; // Flag to indicate if real-time mode is enabled
 
 #define BRAKE_FAIL_ESTOP false // Set to true to trigger an ESTOP if a brake fails to engage/disengage during operation
+
+#define AnalogWriteResolution 8 // Set the PWM resolution to 8 bits (0-255)
+#define AnalogWriteFrequency 200000 // Set the PWM frequency to 200 kHz
+#define AnalogWriteMaxValue (2^AnalogWriteResolution - 1) // Set the maximum PWM value to 255 for 8-bit resolution
+#define AnalogWriteMinValue 0 // Set the minimum PWM value to 0
 
 typedef enum
 {

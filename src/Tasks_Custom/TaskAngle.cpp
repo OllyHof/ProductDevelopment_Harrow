@@ -107,11 +107,11 @@ void TaskAngle(void *pvParameters)
             }
 
             int pwmMagnitude = roundf(fabsf(pidOutput));
-            if (pwmMagnitude >= 255)
+            if (pwmMagnitude >= AnalogWriteMaxValue)
             {
-                pwmMagnitude = 255;
                 integral -= error * dtSeconds; // simple anti-windup
                 integral = constrain(integral, -10000, 10000);
+                pwmMagnitude = AnalogWriteMaxValue;
             }
             prevError = error;
 
